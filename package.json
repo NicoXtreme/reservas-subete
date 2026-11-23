@@ -1,0 +1,15 @@
+﻿{
+  "name": "reservas-subete",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cluster C - Sistema de reservas de viajes compartidos Subete",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:crud": "npm run dev --workspace=apps/reservas-crud",
+    "dev:mid": "npm run dev --workspace=apps/reservas-mid",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  }
+}
