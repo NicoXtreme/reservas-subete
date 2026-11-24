@@ -6,7 +6,7 @@ export type GatewayTransport = Pick<ReturnType<typeof createGatewayClient>, "req
 export const resourceId = z.string().min(1).refine(
   (id) => id === id.trim() && id !== "." && id !== ".." &&
     !/[/%\\\u0000-\u001F\u007F\uD800-\uDFFF]/u.test(id),
-  "El identificador debe ser un segmento de ruta válido."
+  { error: "El identificador debe ser un segmento de ruta válido." }
 );
 
 export function parseGatewayResponse<T>(schema: z.ZodType<T>, data: unknown): T {

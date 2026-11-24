@@ -28,6 +28,13 @@ test("consulta el detalle con GET y codifica el ID para el gateway", async () =>
   expect(request.mock.calls).toEqual([[{ method: "GET", path: "/rutas/ruta%20%C3%B1%3F%23" }]]);
 });
 
+test.each(["2026-11-21T06:30Z", "2026-11-21T01:30:00-0500"])(
+  "conserva el valor ISO de salida %s recibido por el gateway", async (salida) => {
+    request.mockResolvedValue({ ...ruta, salida });
+    await expect(client.obtenerRuta(ruta.id)).resolves.toMatchObject({ salida });
+  }
+);
+
 test.each([[-1, "llena", 0], [1, "abierta", 1]])(
   "envía delta %i por PATCH y valida el resultado provisional",
   async (delta, estado, cuposDisponibles) => {

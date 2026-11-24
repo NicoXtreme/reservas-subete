@@ -100,6 +100,12 @@ test("calcula el día de pronóstico en UTC cuando el offset cruza medianoche", 
   expect(new URL(requests[0].url, baseUrl).searchParams.get("forecast_days")).toBe("2");
 });
 
+test.each(["2026-11-23T11:35Z", "2026-11-23T06:35:00-0500"])(
+  "conserva la compatibilidad con la fecha ISO %s", async (salida) => {
+    await expect(client().forecast({ ...query, salida })).resolves.toEqual(validForecast);
+  }
+);
+
 test("conserva la precisión de la probabilidad porcentual del proveedor", async () => {
   respond = (_req, res) => json(res, payload({ precipitation_probability: [0, 33.3, 90] }));
   await expect(client().forecast(query)).resolves.toMatchObject({

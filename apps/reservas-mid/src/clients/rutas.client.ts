@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isoDateTimeWithOffset } from "../validation/iso-datetime";
 import { parseGatewayResponse, resourceId, type GatewayTransport } from "./gateway-resource";
 
 const coordenadas = z.tuple([
@@ -25,15 +26,14 @@ const rutaSchema = z.object({
     type: z.literal("LineString"),
     coordinates: z.array(coordenadas).min(2)
   }),
-  salida: z.string().datetime({ offset: true })
-    .refine((value) => Number.isFinite(Date.parse(value))),
+  salida: isoDateTimeWithOffset,
   cuposTotales: z.number().int().min(1).max(6),
   cuposDisponibles,
   precioTotal: z.number().finite().nonnegative(),
   estado: estadoRuta
 }).refine((ruta) => ruta.cuposDisponibles <= ruta.cuposTotales, {
   path: ["cuposDisponibles"],
-  message: "Los cupos disponibles superan los cupos totales."
+  error: "Los cupos disponibles superan los cupos totales."
 });
 
 const actualizacionCuposSchema = z.object({ cuposDisponibles, estado: estadoRuta });

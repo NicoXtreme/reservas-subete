@@ -1,12 +1,13 @@
 import axios from "axios";
 import { z } from "zod";
+import { isoDateTimeWithOffset } from "../validation/iso-datetime";
 
 const hourMs = 60 * 60 * 1000;
 const dayMs = 24 * hourMs;
 const maxForecastDays = 16;
 
 const configuration = z.object({
-  baseUrl: z.string().url().default("https://api.open-meteo.com"),
+  baseUrl: z.url().default("https://api.open-meteo.com"),
   timeoutMs: z.number().int().min(1).max(10_000).default(3000),
   maxRetries: z.number().int().min(0).max(2).default(1),
   cacheTtlSeconds: z.number().int().min(1).max(3600).default(900),
@@ -16,8 +17,7 @@ const configuration = z.object({
 const weatherQuery = z.object({
   longitud: z.number().finite().min(-180).max(180),
   latitud: z.number().finite().min(-90).max(90),
-  salida: z.string().datetime({ offset: true })
-    .refine((value) => Number.isFinite(Date.parse(value)), "Fecha no válida.")
+  salida: isoDateTimeWithOffset
 });
 
 const hourlyForecast = z.object({
