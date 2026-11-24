@@ -71,6 +71,30 @@ Usa `curl.exe` en Windows si PowerShell ya reserva el nombre `curl`. Ajusta los 
 - `docker compose down` retira los contenedores y las redes y conserva el volumen de PostgreSQL. Desconecta primero el contenedor externo del gateway de las redes de este proyecto, si lo conectaste.
 - `docker compose down --volumes` elimina también el volumen y sus datos. Úsalo solo si quieres reiniciar la base desde cero.
 
+## Integración continua
+
+El workflow **CI Reservas** se ejecuta al abrir, actualizar, reabrir o marcar como listo un pull request dirigido a `main`. También se puede iniciar manualmente desde **Actions → CI Reservas → Run workflow** cuando el archivo esté publicado en la rama predeterminada. La validación automática se inicia desde el pull request, según la [sección 8 del enunciado general](docs/GENERAL_REQUIREMENTS.md#8-metodología-y-trabajo-en-equipo).
+
+1. **Compilación, pruebas y OpenAPI** instala las dependencias del monorepo con `npm ci`, compila y ejecuta las pruebas con Node.js 22 y revisa los dos contratos con Redocly CLI. El caché de npm usa el lockfile de la raíz.
+2. **Docker Compose y pruebas HTTP** empieza cuando el primer job pasa. Construye ambas imágenes, arranca las APIs y PostgreSQL con credenciales desechables, espera los healthchecks y comprueba que ambas APIs responden 200 en `/health` y 401 en `/reservas` sin cabecera interna. El job muestra los logs del stack si falla y retira los contenedores y volúmenes temporales al finalizar.
+
+Consulta cada ejecución desde **Actions → CI Reservas**, o abre **Checks** en el pull request para ver el resultado y desplegar los pasos de cada job.
+
+Para reproducir el primer job desde la raíz con Node.js 22:
+
+```sh
+npm ci
+npm run build
+npm test
+npx --yes @redocly/cli@2.82.0 lint --extends minimal contracts/reservas-crud.yaml contracts/reservas-mid.yaml
+```
+
+Para reproducir el segundo, sigue [Construir, iniciar y verificar](#construir-iniciar-y-verificar) con credenciales locales de prueba. Puedes asignar un `COMPOSE_PROJECT_NAME` exclusivo, por ejemplo `reservas-ci-local`, durante toda la comprobación. Cuando ese proyecto y sus datos sean desechables, límpialo con `docker compose down --volumes --remove-orphans`.
+
+Después de publicar el workflow y completar una ejecución por pull request, un administrador puede ir a **Settings → Branches**, crear o editar la regla para `main`, habilitar **Require a pull request before merging** con al menos una aprobación y **Require status checks to pass before merging**, y seleccionar los dos jobs de CI por nombre. [Reglas de protección de ramas](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/managing-a-branch-protection-rule)
+
+El despliegue continuo queda pendiente. Incluye publicar las imágenes en un registro, configurar el entorno de nube y sus secretos, desplegar al fusionar el pull request y verificar `/health` en la nube.
+
 ## API externa de clima
 
 **Open-Meteo Weather Forecast API** permite advertir al pasajero sobre las condiciones previstas en el punto y la hora de salida. Se eligió por su cobertura global, pronóstico horario y acceso gratuito para el uso académico no comercial. El MID consulta directamente `GET /v1/forecast` e identifica la aplicación con el encabezado `User-Agent: reservas-subete/1.0`. El servicio gratuito funciona sin API key. [Documentación de pronósticos](https://open-meteo.com/en/docs) · [Planes de Open-Meteo](https://open-meteo.com/en/pricing)

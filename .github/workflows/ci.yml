@@ -1,0 +1,101 @@
+name: CI Reservas
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Compilación, pruebas y OpenAPI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar los workspaces
+        run: npm run build
+
+      - name: Ejecutar pruebas
+        run: npm test
+
+      - name: Validar contratos OpenAPI
+        run: npx --yes @redocly/cli@2.82.0 lint --extends minimal contracts/reservas-crud.yaml contracts/reservas-mid.yaml
+
+  docker:
+    name: Docker Compose y pruebas HTTP
+    needs: build-and-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      COMPOSE_PROJECT_NAME: reservas-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      COMPOSE_DISABLE_ENV_FILE: '1'
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Generar credenciales locales
+        id: compose-env
+        run: |
+          postgres_password=$(openssl rand -hex 24)
+          gateway_secret=$(openssl rand -hex 24)
+          echo "::add-mask::$postgres_password"
+          echo "::add-mask::$gateway_secret"
+          {
+            printf 'POSTGRES_PASSWORD=%s\n' "$postgres_password"
+            printf 'GATEWAY_INTERNAL_SECRET=%s\n' "$gateway_secret"
+          } >> "$GITHUB_ENV"
+
+      - name: Validar Docker Compose
+        run: docker compose config --quiet
+
+      - name: Construir las dos imágenes
+        run: docker compose build reservas-crud reservas-mid
+
+      - name: Iniciar el stack y esperar los healthchecks
+        run: docker compose up -d --wait --wait-timeout 120
+
+      - name: Comprobar disponibilidad y protección HTTP
+        run: |
+          for port in 3001 3002; do
+            health=$(curl --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:$port/health")
+            protected=$(curl --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:$port/reservas")
+            printf 'Puerto %s: /health=%s, /reservas sin cabecera=%s\n' "$port" "$health" "$protected"
+            [[ "$health" == 200 && "$protected" == 401 ]]
+          done
+
+      - name: Mostrar diagnósticos si falla el stack
+        if: ${{ failure() && steps.compose-env.outcome == 'success' }}
+        run: |
+          docker compose ps --all
+          docker compose logs --no-color --tail=100
+
+      - name: Retirar contenedores y volúmenes temporales
+        if: ${{ always() && steps.compose-env.outcome == 'success' }}
+        run: docker compose down --volumes --remove-orphans
