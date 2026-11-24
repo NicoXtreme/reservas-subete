@@ -1,0 +1,83 @@
+services:
+  reservas-crud:
+    init: true
+    build:
+      context: .
+      dockerfile: apps/reservas-crud/Dockerfile
+    environment:
+      CRUD_PORT: "3001"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-reservas}:${POSTGRES_PASSWORD:?Configura POSTGRES_PASSWORD en el entorno local}@postgres:5432/${POSTGRES_DB:-reservas}"
+      GATEWAY_INTERNAL_SECRET: "${GATEWAY_INTERNAL_SECRET:?Configura GATEWAY_INTERNAL_SECRET en el entorno local}"
+    ports:
+      - "127.0.0.1:${CRUD_PORT:-3001}:3001"
+    networks:
+      - crud
+      - database
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health', { signal: AbortSignal.timeout(2000) }).then(r => process.exit(r.status === 200 ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  reservas-mid:
+    init: true
+    build:
+      context: .
+      dockerfile: apps/reservas-mid/Dockerfile
+    environment:
+      MID_PORT: "3002"
+      GATEWAY_URL: "${GATEWAY_URL:-}"
+      GATEWAY_CLIENT_ID: "${GATEWAY_CLIENT_ID:-}"
+      GATEWAY_CLIENT_SECRET: "${GATEWAY_CLIENT_SECRET:-}"
+      GATEWAY_TOKEN_PATH: "${GATEWAY_TOKEN_PATH:-/token}"
+      GATEWAY_TOKEN_FORMAT: "${GATEWAY_TOKEN_FORMAT:-form}"
+      GATEWAY_TIMEOUT_MS: "${GATEWAY_TIMEOUT_MS:-3000}"
+      GATEWAY_READ_RETRIES: "${GATEWAY_READ_RETRIES:-1}"
+      OPEN_METEO_BASE_URL: "${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}"
+      OPEN_METEO_TIMEOUT_MS: "${OPEN_METEO_TIMEOUT_MS:-3000}"
+      OPEN_METEO_MAX_RETRIES: "${OPEN_METEO_MAX_RETRIES:-1}"
+      OPEN_METEO_CACHE_TTL_SECONDS: "${OPEN_METEO_CACHE_TTL_SECONDS:-900}"
+      OPEN_METEO_CACHE_MAX_ENTRIES: "${OPEN_METEO_CACHE_MAX_ENTRIES:-500}"
+      GATEWAY_INTERNAL_SECRET: "${GATEWAY_INTERNAL_SECRET:?Configura GATEWAY_INTERNAL_SECRET en el entorno local}"
+    ports:
+      - "127.0.0.1:${MID_PORT:-3002}:3002"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - mid
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/health', { signal: AbortSignal.timeout(2000) }).then(r => process.exit(r.status === 200 ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-reservas}"
+      POSTGRES_USER: "${POSTGRES_USER:-reservas}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Configura POSTGRES_PASSWORD en el entorno local}"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -h 127.0.0.1 -p 5432 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+networks:
+  crud:
+  mid:
+  database:
+    internal: true
+
+volumes:
+  postgres-data:

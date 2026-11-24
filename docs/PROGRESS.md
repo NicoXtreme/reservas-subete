@@ -15,6 +15,7 @@ La inspección anterior identificó `main` alineada con la referencia local `ori
 - Cliente HTTP genérico del gateway en el MID. Solicita tokens con Client Credentials, reutiliza el token en memoria hasta poco antes de su vencimiento y comparte la renovación entre solicitudes concurrentes.
 - Clientes tipados de Rutas y Reputación en el MID. Usan el cliente inyectado del gateway para consultar rutas y puntajes y actualizar cupos. Zod valida los parámetros y las respuestas.
 - Implementación del cliente independiente de Open-Meteo completa, con consulta horaria en UTC, caché local acotado y resultado tipado de indisponibilidad. La ficha del proveedor está en el README y el borrador OpenAPI declara la degradación.
+- Dockerfiles multietapa para el CRUD y el MID y configuración local de Docker Compose con PostgreSQL 16 y volumen persistente. PostgreSQL queda en una red privada compartida solo con el CRUD.
 
 ## Pendiente de implementación
 
@@ -22,7 +23,7 @@ La inspección anterior identificó `main` alineada con la referencia local `ori
 - Persistencia en PostgreSQL con Sequelize, migraciones, datos semilla y endpoints del CRUD.
 - Endpoints de negocio del MID, reglas de reserva y cancelación, concurrencia y recuperación ante fallos parciales.
 - Integraciones reales a través del gateway y conexión de `GET /reservas/{id}/clima` con el cliente de Open-Meteo una vez disponibles los accesos a los CRUD de Reservas y Rutas.
-- Pruebas de negocio e integración, Docker, pipeline de CI/CD, despliegue y validación de punta a punta.
+- Pruebas de negocio e integración, pipeline de CI/CD, despliegue y validación de punta a punta.
 
 La [sección 4 del enunciado general](GENERAL_REQUIREMENTS.md#4-reglas-de-arquitectura) confirma que toda comunicación entre servicios independientes pasa por el gateway, incluidas las llamadas del MID de Reservas a su propio CRUD. Las operaciones y los scopes para ese acceso siguen pendientes de acuerdo.
 
@@ -50,3 +51,14 @@ El cliente del gateway envía credenciales solo al endpoint de tokens y usa Bear
 | Implementar el cliente de Open-Meteo | Selecciona la hora UTC que contiene la salida, verifica el horizonte de 16 días y valida las series y unidades del proveedor. Implementa plazos por intento y para la consulta completa, reintentos transitorios y caché por instancia con deduplicación concurrente. El endpoint de clima queda pendiente. | `npm run build` compiló ambos workspaces. `npm test` aprobó 100 de 100 pruebas, incluidas 44 de clima con un proveedor HTTP simulado. |
 | Corregir la organización del proyecto | Nicolás lidera el Grupo C. La designación del líder del gateway centralizado y el reparto de su implementación siguen pendientes entre los tres grupos. | Revisión documental y `git diff --check`. |
 | Implementar los clientes de Rutas y Reputación | Los clientes codifican los identificadores, usan exclusivamente el gateway y preservan sus errores, incluido `409 sin_cupos`. Una respuesta exitosa incompatible se reporta como 502. PATCH se envía una sola vez, incluso si la respuesta no se puede interpretar. | `npm run build` compiló ambos workspaces. `npm test` aprobó 156 de 156 pruebas, incluidas 56 nuevas con el transporte del gateway simulado. |
+| Preparar la infraestructura Docker | Imágenes de Node.js 22 y Compose con redes separadas para las APIs y PostgreSQL. El CRUD espera el healthcheck de PostgreSQL. La integración de la aplicación con la base, las migraciones y los seeders siguen pendientes. | `npm run build` compiló ambos workspaces, `npm test` aprobó 156 de 156 pruebas, `git diff --check` terminó sin errores y `docker compose config --quiet` validó Compose. El motor Linux de Docker Desktop no estaba accesible. Quedan pendientes la construcción de imágenes y las comprobaciones con contenedores en ejecución. |
+| Verificar la infraestructura Docker en ejecución | Se construyeron ambas imágenes y se arrancó un proyecto de prueba aislado con credenciales locales. Se añadió `init: true` a las dos APIs tras observar una salida 137 al detenerlas. En la repetición ambas terminaron por SIGTERM (143), PostgreSQL salió con 0 y el volumen se conservó. | Docker Engine 28.5.1. Compose válido, 3 de 3 contenedores sanos, ambos `GET /health` con 200 y ambos `GET /reservas` sin cabecera con 401. Las APIs ejecutaron Node con UID efectivo 1000. PostgreSQL 16.11 aceptó conexiones según `pg_isready`. El puerto interno fue alcanzable desde el CRUD y quedó bloqueado desde el MID, sin publicación al host. Los logs no mostraron fallos de arranque. `npm run build`, 156 de 156 pruebas con `npm test` y `git diff --check` completados. |
+
+La validación de Docker comprueba el arranque y la conectividad de red. La conexión efectiva del CRUD con la base de datos, las migraciones y los seeders siguen pendientes. Durante la construcción, `npm ci` informó vulnerabilidades en las dependencias de producción ya fijadas en el lockfile (3 en CRUD y 1 en MID). El lockfile se conservó.
+
+La revisión final con `npm audit --omit=dev` reportó tres entradas únicas, dos moderadas y una alta. Quedan pendientes en una tarea independiente:
+
+- `zod@3.25.76` es directa en ambas aplicaciones. El aviso de severidad alta afecta la disponibilidad durante la validación de colecciones. El MID valida colecciones recibidas del gateway y de Open-Meteo. La primera versión corregida es 4.6.6, fuera del rango 3.x actual. [Aviso de Zod](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)
+- `sequelize@6.37.8` es directa en el CRUD y `uuid@8.3.2` es su dependencia transitiva. Ambas entradas son moderadas y corresponden al mismo aviso de integridad en `uuid`. Las versiones compatibles consultadas de Sequelize conservan `uuid@^8.3.2`, y la corrección aplicable más cercana es `uuid@11.1.1`. El CRUD actual todavía carece de persistencia, así que la exposición debe evaluarse al integrarla. [Aviso de uuid](https://github.com/advisories/GHSA-w5hq-g745-h8pq)
+
+La auditoría se ejecutó en modo de consulta. Los manifiestos y el lockfile se conservaron.
