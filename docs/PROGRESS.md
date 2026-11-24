@@ -13,11 +13,12 @@ La inspección anterior identificó `main` alineada con la referencia local `ori
 - Contexto de trabajo registrado en [AGENTS.md](../AGENTS.md), el [plan de desarrollo](DEVELOPMENT_PLAN.md) y este registro.
 - Middleware de seguridad en ambas aplicaciones. `GET /health` permanece público y las rutas de negocio se registran después del middleware.
 - Cliente HTTP genérico del gateway en el MID. Solicita tokens con Client Credentials, reutiliza el token en memoria hasta poco antes de su vencimiento y comparte la renovación entre solicitudes concurrentes.
+- Clientes tipados de Rutas y Reputación en el MID. Usan el cliente inyectado del gateway para consultar rutas y puntajes y actualizar cupos. Zod valida los parámetros y las respuestas.
 - Implementación del cliente independiente de Open-Meteo completa, con consulta horaria en UTC, caché local acotado y resultado tipado de indisponibilidad. La ficha del proveedor está en el README y el borrador OpenAPI declara la degradación.
 
 ## Pendiente de implementación
 
-- Integración del cliente con el gateway real y con las operaciones específicas de Rutas, Reputación y Reservas CRUD.
+- Verificación de los clientes de Rutas y Reputación con el gateway real y sus OpenAPI definitivos. El cliente del CRUD propio queda pendiente de acordar con Daniel Gómez.
 - Persistencia en PostgreSQL con Sequelize, migraciones, datos semilla y endpoints del CRUD.
 - Endpoints de negocio del MID, reglas de reserva y cancelación, concurrencia y recuperación ante fallos parciales.
 - Integraciones reales a través del gateway y conexión de `GET /reservas/{id}/clima` con el cliente de Open-Meteo una vez disponibles los accesos a los CRUD de Reservas y Rutas.
@@ -26,6 +27,8 @@ La inspección anterior identificó `main` alineada con la referencia local `ori
 La [sección 4 del enunciado general](GENERAL_REQUIREMENTS.md#4-reglas-de-arquitectura) confirma que toda comunicación entre servicios independientes pasa por el gateway, incluidas las llamadas del MID de Reservas a su propio CRUD. Las operaciones y los scopes para ese acceso siguen pendientes de acuerdo.
 
 Las [decisiones de integración pendientes](DEVELOPMENT_PLAN.md#decisiones-pendientes) condicionan la revisión de los contratos. Consultar los [requisitos oficiales](REQUIREMENTS.md) al retomar el desarrollo.
+
+Los esquemas iniciales de Rutas y Reputación se basan en las secciones 4.1 y 5.2 de los requisitos oficiales. El cliente acepta `delta: -1` y `delta: 1` y espera provisionalmente `cuposDisponibles` y `estado` en la respuesta de PATCH. Está pendiente contrastar esa respuesta, los demás esquemas y el manejo de varios cupos con los OpenAPI definitivos de los grupos A y B.
 
 ## Siguiente tarea de Nicolás Ortiz
 
@@ -46,3 +49,4 @@ El cliente del gateway envía credenciales solo al endpoint de tokens y usa Bear
 | Implementar el cliente HTTP y la gestión de tokens | Solo las lecturas seguras pueden repetirse tras un 401 o un 503. Ante un 401, las lecturas que usaron el mismo token comparten la renovación y cada una se repite como máximo una vez. Ante un 503, el máximo se configura con `GATEWAY_READ_RETRIES`. Las escrituras se envían una sola vez. El error `409 sin_cupos` conserva estado, código, mensaje y detalle cuando el cuerpo es seguro. | `npm run build` terminó correctamente en ambos workspaces. `npm test` aprobó 56 de 56 pruebas, incluidas 40 del cliente con un gateway HTTP simulado. |
 | Implementar el cliente de Open-Meteo | Selecciona la hora UTC que contiene la salida, verifica el horizonte de 16 días y valida las series y unidades del proveedor. Implementa plazos por intento y para la consulta completa, reintentos transitorios y caché por instancia con deduplicación concurrente. El endpoint de clima queda pendiente. | `npm run build` compiló ambos workspaces. `npm test` aprobó 100 de 100 pruebas, incluidas 44 de clima con un proveedor HTTP simulado. |
 | Corregir la organización del proyecto | Nicolás lidera el Grupo C. La designación del líder del gateway centralizado y el reparto de su implementación siguen pendientes entre los tres grupos. | Revisión documental y `git diff --check`. |
+| Implementar los clientes de Rutas y Reputación | Los clientes codifican los identificadores, usan exclusivamente el gateway y preservan sus errores, incluido `409 sin_cupos`. Una respuesta exitosa incompatible se reporta como 502. PATCH se envía una sola vez, incluso si la respuesta no se puede interpretar. | `npm run build` compiló ambos workspaces. `npm test` aprobó 156 de 156 pruebas, incluidas 56 nuevas con el transporte del gateway simulado. |
