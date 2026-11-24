@@ -1,0 +1,355 @@
+
+openapi: 3.0.3
+
+info:
+  title: Reservas CRUD API
+  description: API de persistencia y consulta de reservas del clúster Súbete.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001
+    description: Servidor local de desarrollo
+
+tags:
+  - name: Reservas
+    description: Operaciones CRUD sobre reservas
+
+security:
+  - bearerAuth: []
+
+paths:
+  /reservas:
+    get:
+      tags:
+        - Reservas
+      summary: Consultar reservas
+      description: Lista reservas con filtros opcionales y paginación.
+      parameters:
+        - name: usuarioId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Identificador del pasajero.
+
+        - name: rutaId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Identificador de la ruta.
+
+        - name: estado
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/EstadoReserva'
+
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+
+      responses:
+        '200':
+          description: Reservas consultadas correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaReservas'
+
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+    post:
+      tags:
+        - Reservas
+      summary: Crear reserva
+      description: Crea una reserva en estado pendiente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearReserva'
+
+      responses:
+        '201':
+          description: Reserva creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /reservas/{id}:
+    get:
+      tags:
+        - Reservas
+      summary: Consultar reserva por ID
+      parameters:
+        - $ref: '#/components/parameters/ReservaId'
+
+      responses:
+        '200':
+          description: Reserva encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+    delete:
+      tags:
+        - Reservas
+      summary: Eliminar reserva pendiente
+      description: Solo permite eliminar reservas en estado pendiente.
+      parameters:
+        - $ref: '#/components/parameters/ReservaId'
+
+      responses:
+        '204':
+          description: Reserva eliminada correctamente.
+
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /reservas/{id}/estado:
+    patch:
+      tags:
+        - Reservas
+      summary: Cambiar estado de una reserva
+      description: |
+        Transiciones permitidas:
+        - pendiente -> confirmada
+        - pendiente -> cancelada
+        - confirmada -> completada
+        - confirmada -> cancelada
+      parameters:
+        - $ref: '#/components/parameters/ReservaId'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - estado
+              properties:
+                estado:
+                  $ref: '#/components/schemas/EstadoReserva'
+
+      responses:
+        '200':
+          description: Estado actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ReservaId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Identificador único de la reserva.
+
+  schemas:
+    EstadoReserva:
+      type: string
+      enum:
+        - pendiente
+        - confirmada
+        - cancelada
+        - completada
+
+    Reserva:
+      type: object
+      required:
+        - id
+        - ruta_id
+        - pasajero_id
+        - cupos
+        - abordaje
+        - descenso
+        - costo
+        - estado
+        - penalizacion
+        - creado_en
+        - actualizado_en
+      properties:
+        id:
+          type: string
+          example: res-0001
+
+        ruta_id:
+          type: string
+          example: ruta-0001
+
+        pasajero_id:
+          type: string
+          example: usr-12
+
+        cupos:
+          type: integer
+          minimum: 1
+          example: 1
+
+        abordaje:
+          type: string
+          example: Universidad
+
+        descenso:
+          type: string
+          example: Chapinero
+
+        costo:
+          type: number
+          format: double
+          minimum: 0
+          example: 4000
+
+        estado:
+          $ref: '#/components/schemas/EstadoReserva'
+
+        penalizacion:
+          type: number
+          format: double
+          minimum: 0
+          example: 0
+
+        creado_en:
+          type: string
+          format: date-time
+
+        actualizado_en:
+          type: string
+          format: date-time
+
+    CrearReserva:
+      type: object
+      required:
+        - ruta_id
+        - pasajero_id
+        - cupos
+        - abordaje
+        - descenso
+        - costo
+      properties:
+        ruta_id:
+          type: string
+          example: ruta-0001
+
+        pasajero_id:
+          type: string
+          example: usr-12
+
+        cupos:
+          type: integer
+          minimum: 1
+          example: 1
+
+        abordaje:
+          type: string
+          example: Universidad
+
+        descenso:
+          type: string
+          example: Chapinero
+
+        costo:
+          type: number
+          minimum: 0
+          example: 4000
+
+    ListaReservas:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reserva'
+
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
+            total:
+              type: integer
+              example: 25
+            totalPages:
+              type: integer
+              example: 3
+
+    Error:
+      type: object
+      required:
+        - codigo
+        - mensaje
+      properties:
+        codigo:
+          type: string
+          example: reserva_no_encontrada
+        mensaje:
+          type: string
+          example: No se encontró la reserva solicitada.
+        detalle:
+          type: object
+          additionalProperties: true
+
+  responses:
+    ErrorResponse:
+      description: Error en la operación.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
