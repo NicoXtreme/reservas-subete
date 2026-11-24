@@ -34,7 +34,7 @@ const tokenResponse = z.object({
 const businessErrorResponse = z.object({
   codigo: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
   mensaje: z.string().min(1).max(500),
-  detalle: z.record(z.unknown())
+  detalle: z.record(z.string(), z.unknown())
 });
 
 type BusinessError = z.infer<typeof businessErrorResponse>;
