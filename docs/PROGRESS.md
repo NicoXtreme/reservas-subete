@@ -12,10 +12,11 @@ La inspección anterior identificó `main` alineada con la referencia local `ori
 - Borradores OpenAPI 3.0.3 en `contracts/reservas-crud.yaml` y `contracts/reservas-mid.yaml`.
 - Contexto de trabajo registrado en [AGENTS.md](../AGENTS.md), el [plan de desarrollo](DEVELOPMENT_PLAN.md) y este registro.
 - Middleware de seguridad en ambas aplicaciones. `GET /health` permanece público y las rutas de negocio se registran después del middleware.
+- Cliente HTTP genérico del gateway en el MID. Solicita tokens con Client Credentials, reutiliza el token en memoria hasta poco antes de su vencimiento y comparte la renovación entre solicitudes concurrentes.
 
 ## Pendiente de implementación
 
-- Cliente HTTP del gateway y gestión de tokens JWT con Client Credentials.
+- Integración del cliente con el gateway real y con las operaciones específicas de Rutas, Reputación y Reservas CRUD.
 - Persistencia en PostgreSQL con Sequelize, migraciones, datos semilla y endpoints del CRUD.
 - Endpoints de negocio del MID, reglas de reserva y cancelación, concurrencia y recuperación ante fallos parciales.
 - Integraciones reales a través del gateway e integración externa con Open-Meteo.
@@ -27,7 +28,9 @@ Las [decisiones de integración pendientes](DEVELOPMENT_PLAN.md#decisiones-pendi
 
 ## Siguiente tarea de Nicolás Ortiz
 
-Confirmar con el clúster el nombre definitivo de la cabecera interna. Por ahora se usa `x-gateway-secret` y se lee `GATEWAY_INTERNAL_SECRET` del entorno. El middleware responde 401 si falta la cabecera, 403 si el valor es incorrecto y 503 si se recibió la cabecera pero el secreto del servicio está ausente o en blanco.
+Confirmar con el clúster la URL y el contrato del endpoint de tokens, además del nombre definitivo de la cabecera interna. El cliente usa provisionalmente `POST /token` con cuerpo de formulario y respuesta `access_token` y `expires_in` en segundos. La ruta y el formato de envío se configuran por entorno. La fábrica admite un contrato alternativo para adaptar el envío y la lectura de la respuesta.
+
+El cliente envía credenciales solo al endpoint de tokens y usa Bearer para las operaciones del gateway. Admite rutas con raíz en el origen configurado y desactiva redirecciones y proxies de entorno. La cabecera interna `x-gateway-secret` corresponde al tráfico del gateway hacia los servicios. Open-Meteo se consumirá directamente desde el MID.
 
 ## Registro de tareas
 
@@ -35,3 +38,4 @@ Confirmar con el clúster el nombre definitivo de la cabecera interna. Por ahora
 | --- | --- | --- |
 | Crear documentación de contexto | Se añadieron `AGENTS.md`, `docs/DEVELOPMENT_PLAN.md` y `docs/PROGRESS.md`. | Revisión documental. Compilación y pruebas de aplicación sin ejecutar porque el cambio es documental. |
 | Implementar el middleware de seguridad | CRUD y MID validan la cabecera interna con `timingSafeEqual` después de verificar la longitud en bytes. Las pruebas usan una ruta registrada solo en Jest. | `npm run build` terminó con código 0 en ambos workspaces. `npm test` terminó con código 0 y aprobó 16 de 16 pruebas con Jest y Supertest, 8 por aplicación. |
+| Implementar el cliente HTTP y la gestión de tokens | Solo las lecturas seguras pueden repetirse tras un 401 o un 503. Ante un 401, las lecturas que usaron el mismo token comparten la renovación y cada una se repite como máximo una vez. Ante un 503, el máximo se configura con `GATEWAY_READ_RETRIES`. Las escrituras se envían una sola vez. El error `409 sin_cupos` conserva estado, código, mensaje y detalle cuando el cuerpo es seguro. | `npm run build` terminó correctamente en ambos workspaces. `npm test` aprobó 56 de 56 pruebas, incluidas 40 del cliente con un gateway HTTP simulado. |
