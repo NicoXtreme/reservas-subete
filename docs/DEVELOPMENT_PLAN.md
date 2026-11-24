@@ -17,7 +17,7 @@ El plazo es de siete días. El cronograma conserva todos los requisitos obligato
 
 | Integrante | Responsabilidades |
 | --- | --- |
-| Nicolás Ortiz | Arquitectura e integración, liderazgo del API Gateway del clúster, seguridad y middleware, cliente HTTP del gateway, gestión de JWT con Client Credentials, coordinación de scopes y credenciales, integración de Open-Meteo y coordinación de contratos OpenAPI. Apoya documentación, pruebas y despliegue. |
+| Nicolás Ortiz | Lidera el Grupo C, coordina el trabajo de Daniel Gómez y Daniel Barrera y representa a Reservas ante los líderes de los otros grupos. Es responsable de la arquitectura, la seguridad y el middleware de Reservas, el cliente HTTP del gateway, la gestión de JWT con Client Credentials en el MID, la coordinación de integraciones, scopes y credenciales, Open-Meteo y los contratos OpenAPI. Apoya documentación, pruebas y despliegue. |
 | Daniel Gómez | Configuración de PostgreSQL y Sequelize, modelo de reservas, migraciones, CRUD, validaciones, transiciones de estado, filtros y paginación, datos semilla y pruebas del CRUD. |
 | Daniel Barrera | Reglas de negocio del MID, reserva de cupos, cancelaciones, cálculo de costos, penalizaciones, prevención de duplicados, concurrencia, compensaciones y pruebas del MID. |
 
@@ -75,6 +75,8 @@ Las transiciones permitidas son `pendiente → confirmada`, `pendiente → cance
 
 La [sección 4 del enunciado general](GENERAL_REQUIREMENTS.md#4-reglas-de-arquitectura) exige que toda comunicación entre servicios independientes pase por el gateway. Esto incluye las llamadas del MID de Reservas a su propio CRUD. El gateway emite y valida JWT, controla scopes, enruta peticiones y agrega la cabecera secreta interna. Los servicios rechazan solicitudes de negocio sin una cabecera interna válida y mantienen `GET /health` accesible para comprobaciones de disponibilidad.
 
+El gateway centralizado es una responsabilidad del clúster y su implementación queda fuera de `reservas-subete`. Nicolás coordina desde el Grupo C los acuerdos de integración con los otros equipos.
+
 El formato común de error propuesto es `{ "codigo": "...", "mensaje": "...", "detalle": {} }`. Todas las coordenadas siguen el orden GeoJSON `[longitud, latitud]`.
 
 ## Open-Meteo
@@ -84,6 +86,7 @@ El formato común de error propuesto es `{ "codigo": "...", "mensaje": "...", "d
 ## Decisiones pendientes
 
 - Puertos y URLs de los grupos A y B.
+- Designación del líder del gateway centralizado y reparto de su implementación entre los tres grupos.
 - URL y contrato exacto del endpoint de autenticación del gateway.
 - IDs de los datos semilla.
 - Estructuras definitivas de las respuestas externas.
@@ -104,7 +107,7 @@ Mantener estas decisiones abiertas hasta contar con una definición oficial o co
 | --- | --- |
 | 1 | Arquitectura, repositorio, contratos y acuerdos de integración. |
 | 2 | Seguridad, JWT, cliente HTTP, modelo de datos y operaciones iniciales del CRUD. |
-| 3 | Gateway, scopes, CRUD completo, datos semilla y lógica de reserva de cupos. |
+| 3 | Coordinación con el clúster sobre el gateway y los scopes, CRUD completo, datos semilla y lógica de reserva de cupos. |
 | 4 | Open-Meteo, cancelaciones, penalizaciones, compensaciones y pruebas. |
 | 5 | Integración de los tres grupos mediante el gateway. |
 | 6 | Pruebas de concurrencia, Docker, CI/CD, despliegue y documentación. |
