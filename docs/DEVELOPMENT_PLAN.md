@@ -73,7 +73,7 @@ Las transiciones permitidas son `pendiente → confirmada`, `pendiente → cance
 | MID Reservas | Rutas | `PATCH /rutas/{id}/cupos` | `rutas:escribir` |
 | MID Reservas | Pasajeros y reputación | `GET /perfiles/{id}/puntaje` | `perfiles:leer` |
 
-Todas las comunicaciones internas pasan por el gateway. El gateway emite y valida JWT, controla scopes, enruta peticiones y agrega la cabecera secreta interna. Los servicios rechazan solicitudes de negocio sin una cabecera interna válida y mantienen `GET /health` accesible para comprobaciones de disponibilidad.
+La [sección 4 del enunciado general](GENERAL_REQUIREMENTS.md#4-reglas-de-arquitectura) exige que toda comunicación entre servicios independientes pase por el gateway. Esto incluye las llamadas del MID de Reservas a su propio CRUD. El gateway emite y valida JWT, controla scopes, enruta peticiones y agrega la cabecera secreta interna. Los servicios rechazan solicitudes de negocio sin una cabecera interna válida y mantienen `GET /health` accesible para comprobaciones de disponibilidad.
 
 El formato común de error propuesto es `{ "codigo": "...", "mensaje": "...", "detalle": {} }`. Todas las coordenadas siguen el orden GeoJSON `[longitud, latitud]`.
 
@@ -91,7 +91,7 @@ El formato común de error propuesto es `{ "codigo": "...", "mensaje": "...", "d
 - Representación geográfica definitiva de abordaje y descenso.
 - Operación autorizada para persistir una reserva confirmada. El requisito oficial indica que `POST /reservas` crea reservas pendientes.
 - Mecanismo para persistir la penalización al cancelar.
-- Scopes adicionales para las operaciones del MID sobre su propio CRUD.
+- Operaciones y scopes necesarios para que el MID de Reservas acceda a su propio CRUD mediante el gateway.
 - Disponibilidad del identificador del conductor para validar calificaciones.
 - Semántica del delta para reservas de varios cupos. La guía ejemplifica `-1` y `+1`.
 - Nombre definitivo de la cabecera secreta del gateway.
