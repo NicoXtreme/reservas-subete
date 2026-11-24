@@ -137,14 +137,16 @@ paths:
         del viaje mediante Open-Meteo.
 
         El MID obtiene la hora y las coordenadas de la ruta a través
-        del gateway y consulta el servicio externo.
+        del gateway y consulta Open-Meteo directamente. Selecciona la hora UTC
+        que contiene la salida y requiere datos completos de esa hora.
 
         Plan de degradación:
-        - Tiempo máximo de espera configurable.
-        - Reintentos limitados.
-        - Caché de consultas para reducir solicitudes repetidas.
-        - Si Open-Meteo no responde, devuelve HTTP 200 indicando
-          que la información climática no está disponible.
+        - Plazo por intento y plazo total acotados.
+        - Reintentos limitados para fallos transitorios.
+        - Caché local por instancia con TTL, capacidad máxima y deduplicación de consultas concurrentes.
+        - Ante un fallo externo, timeout, respuesta inválida, datos incompletos
+          o salida fuera del horizonte, responde HTTP 200 con disponible false,
+          motivo y mensaje.
         - La indisponibilidad del clima no impide reservar ni cancelar.
       parameters:
         - $ref: '#/components/parameters/ReservaId'
@@ -340,15 +342,24 @@ components:
           example: true
 
     ConsultaClima:
+      oneOf:
+        - $ref: '#/components/schemas/ClimaDisponible'
+        - $ref: '#/components/schemas/ClimaNoDisponible'
+
+    ClimaDisponible:
       type: object
       required:
         - disponible
         - reservaId
+        - temperatura
+        - probabilidadPrecipitacion
+        - codigoMeteorologico
+        - condicion
+        - fechaHoraPronostico
       properties:
         disponible:
           type: boolean
-          description: Indica si Open-Meteo entregó información.
-          example: true
+          enum: [true]
         reservaId:
           type: string
           example: res-0001
@@ -358,22 +369,59 @@ components:
           nullable: true
         temperatura:
           type: number
-          nullable: true
+          description: Temperatura a 2 m en grados Celsius.
           example: 18.5
         probabilidadPrecipitacion:
           type: number
-          nullable: true
+          description: Probabilidad porcentual para la hora anterior a la marca seleccionada.
           minimum: 0
           maximum: 100
           example: 75
+        codigoMeteorologico:
+          type: integer
+          description: Código de interpretación meteorológica WMO reportado por Open-Meteo.
+          example: 63
         condicion:
           type: string
-          nullable: true
-          example: lluvia
+          example: Lluvia moderada
+        fechaHoraPronostico:
+          type: string
+          format: date-time
+          description: Marca horaria seleccionada en UTC.
+          example: '2026-11-23T11:00:00.000Z'
         mensaje:
           type: string
+
+    ClimaNoDisponible:
+      type: object
+      additionalProperties: false
+      required:
+        - disponible
+        - reservaId
+        - motivo
+        - mensaje
+      properties:
+        disponible:
+          type: boolean
+          enum: [false]
+        reservaId:
+          type: string
+          example: res-0001
+        salida:
+          type: string
+          format: date-time
           nullable: true
-          example: Se esperan lluvias cerca de la hora de salida.
+        motivo:
+          type: string
+          enum:
+            - fuera_de_horizonte
+            - sin_datos
+            - respuesta_invalida
+            - timeout
+            - proveedor_no_disponible
+        mensaje:
+          type: string
+          example: No hay datos meteorológicos completos para la hora de salida.
 
     Error:
       type: object
