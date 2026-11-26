@@ -1,5 +1,9 @@
 # Progreso de reservas-subete
 
+## Acuerdo interno CRUD–MID (N19)
+
+El equipo confirmó los acuerdos de creación pendiente y confirmada, unicidad concurrente, cancelación atómica, idempotencia y compensación. Se registraron en el [contrato interno CRUD–MID](CRUD_MID_CONTRACT.md), junto con las responsabilidades y la separación entre lo integrado y lo pendiente. [N19, issue #20](https://github.com/NicoXtreme/reservas-subete/issues/20) sigue abierto. Falta especificar los detalles internos y cerrar los acuerdos del gateway y las dependencias externas de N18.
+
 ## Línea base
 
 La inspección anterior identificó `main` alineada con la referencia local `origin/main`, con el árbol limpio y el último commit `eac501e` (`docs: define OpenAPI contracts for reservations`). Al iniciar la documentación de contexto, Git mostraba `docs/REQUIREMENTS.md` y `docs/GENERAL_REQUIREMENTS.md` como archivos locales sin seguimiento.
