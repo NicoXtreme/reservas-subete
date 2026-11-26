@@ -84,3 +84,11 @@ Antes de la actualización, `npm audit --omit=dev` reportó tres entradas, dos m
 - `sequelize@6.37.8` es directa en el CRUD y `uuid@8.3.2` es su dependencia transitiva. Ambas entradas son moderadas y corresponden al mismo aviso de integridad en `uuid`. Las versiones compatibles consultadas de Sequelize conservan `uuid@^8.3.2`, y la corrección aplicable más cercana es `uuid@11.1.1`. El CRUD actual todavía carece de persistencia, así que la exposición debe evaluarse al integrarla. [Aviso de uuid](https://github.com/advisories/GHSA-w5hq-g745-h8pq)
 
 La auditoría se ejecutó en modo de consulta. El cambio de los manifiestos y del lockfile se limitó a Zod. Las entradas de Sequelize y uuid conservan sus versiones.
+
+## Evaluación de Sequelize y uuid (N17)
+
+El [issue #18](https://github.com/NicoXtreme/reservas-subete/issues/18) queda abierto. La [evaluación de seguridad](SECURITY.md) registra que ambas auditorías devolvieron código 1 con dos entradas moderadas de un mismo aviso. El árbol instalado se verificó con código 0. No se encontró una ruta HTTP hacia las funciones afectadas en la base evaluada y la exposición queda sin determinar. Se recomienda conservar Sequelize 6, revisar el alcance al integrar persistencia y reevaluar una actualización compatible. Las dependencias conservan sus versiones.
+
+`npm run build` y `npm test` devolvieron código 0, con 160 de 160 pruebas aprobadas. La evaluación no incluyó Docker ni pruebas de persistencia contra PostgreSQL.
+
+La revalidación del 2026-11-26 mantuvo los resultados de auditoría. La evaluación registra por separado el hallazgo pendiente de DG01 en el [PR #67](https://github.com/NicoXtreme/reservas-subete/pull/67): el cambio revisado desactivaba la validación del servidor al habilitar TLS. El hallazgo corresponde a la configuración propuesta en ese PR y no al aviso de las dependencias.
