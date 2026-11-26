@@ -144,6 +144,16 @@ describe("Configuración de PostgreSQL en reservas-crud", () => {
     expect(opciones).not.toHaveProperty("dialectOptions");
   });
 
+  test("configura SSL para Azure cuando DB_SSL=true", () => {
+    entornoDirecto({ DB_SSL: "true" });
+
+    cargarModulo();
+
+    expect(mockConstructorCalls[0][0].dialectOptions).toEqual({
+      ssl: { require: true, rejectUnauthorized: false }
+    });
+  });
+
   test("usa DATABASE_URL sin exigir DB_*", () => {
     limpiarEntorno();
     process.env.DATABASE_URL = "postgresql://usuario:clave-secreta@postgres:5432/reservas";

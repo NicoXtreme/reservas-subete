@@ -68,7 +68,7 @@ function pool(): PoolOptions {
 function dialectOptions(): Options["dialectOptions"] {
   const habilitado = (process.env.DB_SSL?.trim().toLowerCase() || "false") === "true";
 
-  return habilitado ? { ssl: true } : undefined;
+  return habilitado ? { ssl: { require: true, rejectUnauthorized: false } } : undefined;
 }
 
 function opcionesComunes(): Options {
