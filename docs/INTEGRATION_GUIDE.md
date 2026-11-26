@@ -194,15 +194,6 @@ export async function consultarPronosticoEnOrigen(ruta: Ruta) {
 
 El ejemplo ilustra la consulta para el origen de una ruta. Falta conectar el endpoint de clima con los datos de Reservas y Rutas y confirmar las operaciones de acceso. El borrador del MID prevé HTTP 200 para `disponible: false`. El cliente devuelve datos y la futura capa HTTP construirá la respuesta del endpoint. [Contrato MID](../contracts/reservas-mid.yaml)
 
-## Coordinación pendiente con Daniel Gómez
+## Contrato interno CRUD–MID
 
-El MID accederá al CRUD propio mediante el gateway. El borrador del CRUD y las reglas oficiales permiten identificar las necesidades, pero hacen falta acuerdos sobre las operaciones autorizadas, sus contratos y los scopes antes de crear el cliente interno. [Borrador del CRUD](../contracts/reservas-crud.yaml) · [Requisitos de Reservas](REQUIREMENTS.md#6-grupo-reservas)
-
-| Necesidad del MID | Decisión pendiente |
-| --- | --- |
-| Consultar una reserva para cancelación o clima | Confirmar la operación de detalle, los campos requeridos y el scope de acceso interno. |
-| Detectar una reserva activa del mismo pasajero en una ruta | Confirmar la consulta, los filtros y la garantía disponible ante solicitudes concurrentes. |
-| Persistir una reserva confirmada después de descontar cupos | Acordar el flujo autorizado. Los requisitos indican que `POST /reservas` crea una reserva pendiente. |
-| Cancelar y registrar una penalización cuando corresponda | Acordar cómo persistir el cambio de estado junto con la penalización y cómo informar los conflictos. |
-
-También queda por confirmar qué rutas y métodos publicará el gateway para el CRUD propio, los scopes de lectura y escritura y los formatos de error definitivos. La implementación del CRUD corresponde a Daniel Gómez. Las reglas del MID corresponden a Daniel Barrera.
+Consulta el [contrato interno CRUD–MID](CRUD_MID_CONTRACT.md) antes de implementar el cliente del CRUD, la persistencia o las reglas de reserva y cancelación. Allí se registran los acuerdos del Grupo C, las operaciones propuestas y las decisiones todavía pendientes. El MID accederá al CRUD propio mediante el gateway. El enrutamiento, los scopes y los formatos de error definitivos quedan pendientes de coordinación en N18.

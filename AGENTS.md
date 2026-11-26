@@ -9,6 +9,7 @@ Nicolás Ortiz lidera el Grupo C, coordina el trabajo de Daniel Gómez y Daniel 
 - [Requisitos del clúster](docs/REQUIREMENTS.md) es la fuente oficial y tiene prioridad sobre los borradores. Consulta también el [enunciado general](docs/GENERAL_REQUIREMENTS.md).
 - El [plan de desarrollo](docs/DEVELOPMENT_PLAN.md) reúne el alcance, las responsabilidades, los acuerdos pendientes y el cronograma.
 - El [registro de progreso](docs/PROGRESS.md) indica lo que está disponible, lo que falta y la siguiente tarea.
+- Consulta el [contrato interno CRUD–MID](docs/CRUD_MID_CONTRACT.md) antes de trabajar en N19, N20 o en las tareas relacionadas de persistencia y orquestación de reservas.
 - Los contratos de [CRUD](contracts/reservas-crud.yaml) y [MID](contracts/reservas-mid.yaml) son borradores. Revísalos a medida que se resuelvan las decisiones de integración.
 
 ## Límites de trabajo
