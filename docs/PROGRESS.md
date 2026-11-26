@@ -4,6 +4,14 @@
 
 La inspección anterior identificó `main` alineada con la referencia local `origin/main`, con el árbol limpio y el último commit `eac501e` (`docs: define OpenAPI contracts for reservations`). Al iniciar la documentación de contexto, Git mostraba `docs/REQUIREMENTS.md` y `docs/GENERAL_REQUIREMENTS.md` como archivos locales sin seguimiento.
 
+## Formalización de Scrumban (N15)
+
+El [issue #16](https://github.com/NicoXtreme/reservas-subete/issues/16) sigue abierto. El [tablero de GitHub Projects](https://github.com/users/NicoXtreme/projects/1/views/1) ya está configurado. La rama `docs/16-scrumban-methodology` contiene la [metodología](METHODOLOGY.md), las reglas de colaboración y la [plantilla de acta](meetings/TEMPLATE.md). La publicación, la revisión y el CI del PR quedan pendientes.
+
+La compilación de ambos workspaces y las 160 pruebas pasaron localmente. También se comprobaron las rutas y los enlaces de la documentación.
+
+Este avance es independiente de N14 ([issue #15](https://github.com/NicoXtreme/reservas-subete/issues/15)). Si ambos PR coinciden en este registro al integrarse, se conservará esta sección de N15 junto con la entrada de N14 y sus decisiones pendientes sobre OpenAPI. Cada PR debe revisarse y verificarse con ambos aportes preservados.
+
 ## Disponible
 
 - Monorepo con npm Workspaces y dependencias instaladas.
