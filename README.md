@@ -39,6 +39,26 @@ Compose arma la URL del CRUD con `postgres:5432`, `POSTGRES_DB`, `POSTGRES_USER`
 
 Los puertos publicados son `127.0.0.1:3001` y `127.0.0.1:3002` por defecto. `CRUD_PORT` y `MID_PORT` cambian los puertos del host en Compose y los puertos de escucha cuando se ejecuta con npm. Dentro de los contenedores se usan siempre 3001 y 3002. La red privada de PostgreSQL se comparte solo con el CRUD. El CRUD y el MID están en redes de aplicación distintas.
 
+### Configuración de PostgreSQL
+
+El CRUD usa Sequelize y necesita una URL completa o un grupo de variables separadas. `DATABASE_URL` tiene prioridad y Compose la arma con el host `postgres:5432`. Cuando el CRUD se ejecuta con npm desde el host y `DATABASE_URL` está vacía, se exigen las variables `DB_*`.
+
+| Variable | Requerida | Valor inicial | Uso |
+| --- | --- | --- | --- |
+| `DATABASE_URL` | Una de `DATABASE_URL` o `DB_*` | Vacía | URL `postgresql://...`; la usa Compose. |
+| `DB_HOST` | Si no hay `DATABASE_URL` | `127.0.0.1` | Host alcanzable desde el CRUD. |
+| `DB_PORT` | Si no hay `DATABASE_URL` | `5432` | Puerto de PostgreSQL. |
+| `DB_NAME` | Si no hay `DATABASE_URL` | `reservas` | Base de datos. |
+| `DB_USER` | Si no hay `DATABASE_URL` | `reservas` | Usuario. |
+| `DB_PASSWORD` | Si no hay `DATABASE_URL` | Sin valor | Contraseña local; nunca se registra en los logs. |
+| `DB_DIALECT` | No | `postgres` | Solo se admite `postgres`. |
+| `DB_SSL` | No | `false` | `true` habilita TLS del driver. |
+| `DB_POOL_MAX` | No | `5` | Máximo de conexiones del pool. |
+| `DB_POOL_MIN` | No | `0` | Mínimo de conexiones del pool. |
+| `DB_LOGGING` | No | `false` | `true` registra el SQL de Sequelize. |
+
+Para levantar solo la base con Docker, ejecuta `docker compose up -d postgres`. Ese servicio no publica puertos al host: para ejecutar el CRUD con npm, apunta `DB_HOST` a una instancia local alcanzable en `127.0.0.1:5432` o define `DATABASE_URL`. Si falta una variable obligatoria o un valor no es válido, el CRUD falla antes de escuchar peticiones con un mensaje que identifica la variable. Durante el arranque, `testConnection()` ejecuta `sequelize.authenticate()` y distingue conexión rechazada, credenciales inválidas, base inexistente y timeout sin incluir contraseñas en los mensajes.
+
 ### Conexión al gateway del clúster
 
 - **Gateway en el host.** Usa `GATEWAY_URL=http://host.docker.internal:PUERTO` en Compose y configura el gateway para escuchar en una interfaz alcanzable desde Docker. El gateway puede llegar a las APIs por los puertos publicados en el host. Si ejecutas el MID con npm desde el host, usa el origen que corresponda, por ejemplo `http://127.0.0.1:PUERTO`.
@@ -63,7 +83,7 @@ docker compose exec -T postgres pg_isready -h 127.0.0.1 -U reservas -d reservas
 docker compose exec -T postgres psql -U reservas -d reservas -c "SELECT 1;"
 ```
 
-Usa `curl.exe` en Windows si PowerShell ya reserva el nombre `curl`. Ajusta los puertos, usuario y base en los comandos si cambiaste sus valores. `/health` debe responder 200. Una solicitud a `/reservas` sin la cabecera interna debe responder 401 porque atraviesa el middleware, incluso mientras la ruta de negocio todavía no está implementada. `pg_isready` y `SELECT 1` comprueban la disponibilidad de PostgreSQL. Los chequeos HTTP comprueban la disponibilidad de Express. La conexión efectiva del CRUD, las migraciones y los seeders se incorporarán con la implementación de persistencia.
+Usa `curl.exe` en Windows si PowerShell ya reserva el nombre `curl`. Ajusta los puertos, usuario y base en los comandos si cambiaste sus valores. `/health` debe responder 200. Una solicitud a `/reservas` sin la cabecera interna debe responder 401 porque atraviesa el middleware, incluso mientras la ruta de negocio todavía no está implementada. `pg_isready` y `SELECT 1` comprueban la disponibilidad de PostgreSQL. Los chequeos HTTP comprueban la disponibilidad de Express. El CRUD ejecuta `testConnection()` antes de abrir el puerto: `docker compose logs --tail=100 reservas-crud` debe mostrar `Conexión a PostgreSQL establecida correctamente.` antes del mensaje del puerto. Si la conexión falla, el proceso termina con código 1 y no escucha peticiones. Las migraciones y los seeders siguen pendientes.
 
 ### Detener y conservar los datos
 
