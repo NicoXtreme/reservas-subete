@@ -61,6 +61,28 @@ El CRUD usa Sequelize y necesita una URL completa o un grupo de variables separa
 
 Para levantar solo la base con Docker, ejecuta `docker compose up -d postgres`. Ese servicio no publica puertos al host: para ejecutar el CRUD con npm, apunta `DB_HOST` a una instancia local alcanzable en `127.0.0.1:5432` o define `DATABASE_URL`. Si falta una variable obligatoria o un valor no es válido, el CRUD falla antes de escuchar peticiones con un mensaje que identifica la variable. Durante el arranque, `testConnection()` ejecuta `sequelize.authenticate()` y distingue conexión rechazada, credenciales inválidas, base inexistente y timeout sin incluir contraseñas en los mensajes.
 
+### Migraciones
+
+Las migraciones usan `sequelize-cli` con la configuración JavaScript de `apps/reservas-crud/config/config.js`. Esa configuración lee las mismas variables `DATABASE_URL` o `DB_*` descritas arriba, por lo que no es necesario compilar TypeScript ni modificar `src/config/database.ts`.
+
+Desde la raíz del repositorio:
+
+```sh
+npm run migrate --workspace=apps/reservas-crud
+npm run migrate:undo --workspace=apps/reservas-crud
+```
+
+Los mismos comandos desde `apps/reservas-crud`:
+
+```sh
+npx sequelize-cli db:migrate
+npx sequelize-cli db:migrate:undo
+```
+
+La migración `20261126000000-create-reservas.js` crea la tabla `reservas` con los campos y estados de la sección 6.1. La reversión elimina la tabla y el tipo ENUM `enum_reservas_estado`; no la ejecutes si necesitas conservar los datos. Para consultar el estado de las migraciones, ejecuta `npx sequelize-cli db:migrate:status` desde `apps/reservas-crud`.
+
+En esta entrega no se ejecutó la migración contra PostgreSQL: el motor Docker no estaba disponible en el entorno de desarrollo. La comprobación `up`/`undo` queda pendiente de ejecutarse en el despliegue o en un entorno con Docker.
+
 ### Conexión al gateway del clúster
 
 - **Gateway en el host.** Usa `GATEWAY_URL=http://host.docker.internal:PUERTO` en Compose y configura el gateway para escuchar en una interfaz alcanzable desde Docker. El gateway puede llegar a las APIs por los puertos publicados en el host. Si ejecutas el MID con npm desde el host, usa el origen que corresponda, por ejemplo `http://127.0.0.1:PUERTO`.
@@ -85,7 +107,7 @@ docker compose exec -T postgres pg_isready -h 127.0.0.1 -U reservas -d reservas
 docker compose exec -T postgres psql -U reservas -d reservas -c "SELECT 1;"
 ```
 
-Usa `curl.exe` en Windows si PowerShell ya reserva el nombre `curl`. Ajusta los puertos, usuario y base en los comandos si cambiaste sus valores. `/health` debe responder 200. Una solicitud a `/reservas` sin la cabecera interna debe responder 401 porque atraviesa el middleware, incluso mientras la ruta de negocio todavía no está implementada. `pg_isready` y `SELECT 1` comprueban la disponibilidad de PostgreSQL. Los chequeos HTTP comprueban la disponibilidad de Express. El CRUD ejecuta `testConnection()` antes de abrir el puerto: `docker compose logs --tail=100 reservas-crud` debe mostrar `Conexión a PostgreSQL establecida correctamente.` antes del mensaje del puerto. Si la conexión falla, el proceso termina con código 1 y no escucha peticiones. Las migraciones y los seeders siguen pendientes.
+Usa `curl.exe` en Windows si PowerShell ya reserva el nombre `curl`. Ajusta los puertos, usuario y base en los comandos si cambiaste sus valores. `/health` debe responder 200. Una solicitud a `/reservas` sin la cabecera interna debe responder 401 porque atraviesa el middleware, incluso mientras la ruta de negocio todavía no está implementada. `pg_isready` y `SELECT 1` comprueban la disponibilidad de PostgreSQL. Los chequeos HTTP comprueban la disponibilidad de Express. El CRUD ejecuta `testConnection()` antes de abrir el puerto: `docker compose logs --tail=100 reservas-crud` debe mostrar `Conexión a PostgreSQL establecida correctamente.` antes del mensaje del puerto. Si la conexión falla, el proceso termina con código 1 y no escucha peticiones. Los seeders siguen pendientes; consulta la sección “Migraciones” para crear la tabla antes de iniciar el CRUD.
 
 ### Detener y conservar los datos
 
