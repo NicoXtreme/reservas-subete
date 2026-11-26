@@ -3,12 +3,20 @@ openapi: 3.0.3
 
 info:
   title: Reservas CRUD API
-  description: API de persistencia y consulta de reservas del clúster Súbete.
+  description: |
+    API de persistencia y consulta de reservas del clúster Súbete.
+    Este borrador describe las operaciones de negocio previstas.
+
+    Los consumidores acceden a través del gateway, que valida el JWT Bearer
+    y los permisos aplicables. El gateway llama al CRUD con la cabecera interna
+    x-gateway-secret. El nombre de esa cabecera es provisional. El CRUD comprueba
+    el secreto compartido en las solicitudes de negocio. GET /health queda
+    accesible sin cabecera para verificar la disponibilidad.
   version: 1.0.0
 
 servers:
   - url: http://localhost:3001
-    description: Servidor local de desarrollo
+    description: Dirección local del CRUD para desarrollo y diagnóstico. El acceso directo a las operaciones protegidas requiere la cabecera interna.
 
 tags:
   - name: Reservas
@@ -20,10 +28,13 @@ security:
 paths:
   /reservas:
     get:
+      operationId: listarReservas
       tags:
         - Reservas
       summary: Consultar reservas
-      description: Lista reservas con filtros opcionales y paginación.
+      description: |
+        Lista reservas con filtros opcionales por pasajero, ruta y estado.
+        Aplica paginación a los resultados. Responde 400 si los parámetros son inválidos.
       parameters:
         - name: usuarioId
           in: query
@@ -42,12 +53,14 @@ paths:
         - name: estado
           in: query
           required: false
+          description: Estado por el cual se filtran las reservas.
           schema:
             $ref: '#/components/schemas/EstadoReserva'
 
         - name: page
           in: query
           required: false
+          description: Número de página, empezando en 1.
           schema:
             type: integer
             minimum: 1
@@ -56,6 +69,7 @@ paths:
         - name: limit
           in: query
           required: false
+          description: Cantidad máxima de reservas por página.
           schema:
             type: integer
             minimum: 1
@@ -64,7 +78,7 @@ paths:
 
       responses:
         '200':
-          description: Reservas consultadas correctamente.
+          description: Página de reservas y metadatos de paginación.
           content:
             application/json:
               schema:
@@ -74,12 +88,16 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
 
     post:
+      operationId: crearReservaPendiente
       tags:
         - Reservas
       summary: Crear reserva
-      description: Crea una reserva en estado pendiente.
+      description: |
+        Crea una reserva en estado pendiente. La operación que usará el MID para
+        persistir una reserva confirmada está pendiente de definición.
       requestBody:
         required: true
+        description: Datos para registrar una reserva en estado pendiente.
         content:
           application/json:
             schema:
@@ -87,7 +105,7 @@ paths:
 
       responses:
         '201':
-          description: Reserva creada correctamente.
+          description: Reserva creada en estado pendiente.
           content:
             application/json:
               schema:
@@ -101,9 +119,11 @@ paths:
 
   /reservas/{id}:
     get:
+      operationId: obtenerReservaPorId
       tags:
         - Reservas
       summary: Consultar reserva por ID
+      description: Recupera la reserva identificada por id. Responde 404 si no existe.
       parameters:
         - $ref: '#/components/parameters/ReservaId'
 
@@ -119,16 +139,19 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
 
     delete:
+      operationId: eliminarReservaPendiente
       tags:
         - Reservas
       summary: Eliminar reserva pendiente
-      description: Solo permite eliminar reservas en estado pendiente.
+      description: |
+        Elimina una reserva solo si está pendiente. Responde 404 si no existe
+        o 409 si su estado impide eliminarla.
       parameters:
         - $ref: '#/components/parameters/ReservaId'
 
       responses:
         '204':
-          description: Reserva eliminada correctamente.
+          description: Reserva eliminada. La respuesta no lleva cuerpo.
 
         '404':
           $ref: '#/components/responses/ErrorResponse'
@@ -138,6 +161,7 @@ paths:
 
   /reservas/{id}/estado:
     patch:
+      operationId: actualizarEstadoReserva
       tags:
         - Reservas
       summary: Cambiar estado de una reserva
@@ -147,6 +171,9 @@ paths:
         - pendiente -> cancelada
         - confirmada -> completada
         - confirmada -> cancelada
+
+        Una transición no permitida responde 409. El mecanismo para persistir
+        una penalización durante la cancelación está pendiente de definición.
       parameters:
         - $ref: '#/components/parameters/ReservaId'
 
@@ -164,7 +191,7 @@ paths:
 
       responses:
         '200':
-          description: Estado actualizado correctamente.
+          description: Reserva con el estado actualizado.
           content:
             application/json:
               schema:
@@ -185,6 +212,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT presentado al gateway. La cabecera interna que el gateway agrega al reenviar la solicitud se valida por separado en el CRUD.
 
   parameters:
     ReservaId:
@@ -198,6 +226,7 @@ components:
   schemas:
     EstadoReserva:
       type: string
+      description: Estado de la reserva dentro del flujo de persistencia.
       enum:
         - pendiente
         - confirmada
@@ -206,6 +235,7 @@ components:
 
     Reserva:
       type: object
+      description: Representación de la reserva devuelta por el CRUD, con sus marcas de creación y actualización.
       required:
         - id
         - ruta_id
@@ -238,10 +268,12 @@ components:
 
         abordaje:
           type: string
+          description: Identifica el punto de abordaje. La representación geográfica definitiva está pendiente.
           example: Universidad
 
         descenso:
           type: string
+          description: Identifica el punto de descenso. La representación geográfica definitiva está pendiente.
           example: Chapinero
 
         costo:
@@ -269,6 +301,7 @@ components:
 
     CrearReserva:
       type: object
+      description: Datos requeridos para crear una reserva pendiente.
       required:
         - ruta_id
         - pasajero_id
@@ -305,6 +338,7 @@ components:
 
     ListaReservas:
       type: object
+      description: Resultados paginados de la consulta de reservas.
       required:
         - data
         - pagination
@@ -316,6 +350,7 @@ components:
 
         pagination:
           type: object
+          description: Metadatos que describen la página y el total de resultados.
           properties:
             page:
               type: integer
@@ -332,23 +367,27 @@ components:
 
     Error:
       type: object
+      description: Formato de error del contrato. El código y el mensaje son obligatorios y el detalle contextual es opcional.
       required:
         - codigo
         - mensaje
       properties:
         codigo:
           type: string
+          description: Identificador del error para consumo programático.
           example: reserva_no_encontrada
         mensaje:
           type: string
+          description: Mensaje legible que describe el error.
           example: No se encontró la reserva solicitada.
         detalle:
           type: object
+          description: Datos adicionales del error cuando están disponibles.
           additionalProperties: true
 
   responses:
     ErrorResponse:
-      description: Error en la operación.
+      description: Error de la operación según el estado HTTP indicado.
       content:
         application/json:
           schema:
