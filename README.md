@@ -31,6 +31,10 @@ sobre las reservas.
 Responsable de las reglas de negocio, creación y cancelación
 de reservas e integración con otros servicios.
 
+## Metodología y colaboración
+
+Los issues, prioridades y responsables se coordinan en el [tablero Scrumban de Reservas](https://github.com/users/NicoXtreme/projects/1/views/1). La [metodología del Grupo C](docs/METHODOLOGY.md) documenta el flujo de PR, las revisiones cruzadas, los límites WIP y el registro de reuniones.
+
 ## Desarrollo con Docker Compose
 
 Desde la raíz del repositorio, copia `.env.example` a `.env` si aún no existe. Usa `cp .env.example .env` en Bash o `Copy-Item .env.example .env` en PowerShell. Define una contraseña local para `POSTGRES_PASSWORD` y un valor independiente para `GATEWAY_INTERNAL_SECRET`. Puedes generar cada valor con `node -p "require('node:crypto').randomBytes(24).toString('hex')"`. Mantén esos valores en `.env`.

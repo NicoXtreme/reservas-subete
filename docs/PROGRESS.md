@@ -4,6 +4,14 @@
 
 La inspección anterior identificó `main` alineada con la referencia local `origin/main`, con el árbol limpio y el último commit `eac501e` (`docs: define OpenAPI contracts for reservations`). Al iniciar la documentación de contexto, Git mostraba `docs/REQUIREMENTS.md` y `docs/GENERAL_REQUIREMENTS.md` como archivos locales sin seguimiento.
 
+## Formalización de Scrumban (N15)
+
+El [issue #16](https://github.com/NicoXtreme/reservas-subete/issues/16) sigue abierto. El [tablero de GitHub Projects](https://github.com/users/NicoXtreme/projects/1/views/1) ya está configurado. La rama `docs/16-scrumban-methodology` contiene la [metodología](METHODOLOGY.md), las reglas de colaboración y la [plantilla de acta](meetings/TEMPLATE.md). La publicación, la revisión y el CI del PR quedan pendientes.
+
+La compilación de ambos workspaces y las 160 pruebas pasaron localmente. También se comprobaron las rutas y los enlaces de la documentación.
+
+Este avance es independiente de N14 ([issue #15](https://github.com/NicoXtreme/reservas-subete/issues/15)). Si ambos PR coinciden en este registro al integrarse, se conservará esta sección de N15 junto con la entrada de N14 y sus decisiones pendientes sobre OpenAPI. Cada PR debe revisarse y verificarse con ambos aportes preservados.
+
 ## Disponible
 
 - Monorepo con npm Workspaces y dependencias instaladas.
@@ -32,6 +40,13 @@ La [sección 4 del enunciado general](GENERAL_REQUIREMENTS.md#4-reglas-de-arquit
 Las [decisiones de integración pendientes](DEVELOPMENT_PLAN.md#decisiones-pendientes) condicionan la revisión de los contratos. Consultar los [requisitos oficiales](REQUIREMENTS.md) al retomar el desarrollo.
 
 Los esquemas iniciales de Rutas y Reputación se basan en las secciones 4.1 y 5.2 de los requisitos oficiales. El cliente acepta `delta: -1` y `delta: 1` y espera provisionalmente `cuposDisponibles` y `estado` en la respuesta de PATCH. Está pendiente contrastar esa respuesta, los demás esquemas y el manejo de varios cupos con los OpenAPI definitivos de los grupos A y B.
+
+### Decisiones pendientes de los contratos OpenAPI
+
+- Acordar cómo exponer el origen del gateway y representar la cabecera interna definitiva. Los contratos declaran JWT Bearer para el acceso vía gateway. La comprobación de la cabecera y sus respuestas de seguridad se explican como comportamiento interno, a la espera de acordar cuáles se exponen a los consumidores.
+- Confirmar si `detalle` será obligatorio en el formato común de errores. Ambos contratos lo dejan opcional. El middleware lo incluye y el cliente del gateway lo exige para conservar el cuerpo de un error de negocio.
+- Acordar las operaciones y scopes del CRUD propio para persistir una reserva confirmada y para registrar la penalización junto con el cambio de estado. El borrador del CRUD crea reservas pendientes mediante POST y el PATCH documentado solo recibe el estado.
+- Confirmar la representación geográfica de abordaje y descenso, el método de cálculo de distancia y la semántica para descontar o devolver varios cupos. La integración del endpoint de clima con los CRUD de Reservas y Rutas también sigue pendiente.
 
 ## Siguiente tarea de Nicolás Ortiz
 
@@ -62,6 +77,7 @@ El cliente del gateway envía credenciales solo al endpoint de tokens y usa Bear
 | Documentar las integraciones del Grupo C | Se añadió [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) con las firmas reales, el uso de una instancia compartida del gateway y los acuerdos pendientes para el CRUD propio. | Los cinco ejemplos TypeScript pasaron la comprobación estática en modo estricto, se revisaron los enlaces locales y `git diff --check` terminó sin errores. |
 | Configurar conexión PostgreSQL con Sequelize (DG01) | Se añadió `apps/reservas-crud/src/config/database.ts`. Valida `DATABASE_URL` o `DB_*`, configura dialecto, pool, SSL y logging, y expone `testConnection()` con mensajes legibles para conexión rechazada, credenciales inválidas, base inexistente y timeout, sin registrarse contraseñas. El arranque comprueba la conexión antes de `listen` y termina con código 1 si falla. `DB_SSL=true` envía `ssl.require` con `rejectUnauthorized: true` y, si se define `DB_SSL_CA`, convierte los `\n` literales del PEM en saltos de línea reales. `DB_PASSWORD` se usa sin recortar y `DATABASE_URL` se pasa a Sequelize sin recortar. README y `.env.example` documentan la validación estricta. Se ampliaron las pruebas unitarias sin BD real. La tarea declara responsable a @xLufero99; [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) sigue asignando la persistencia a Daniel Gómez y la discrepancia queda registrada para confirmación del equipo. | `npm ci` instaló las dependencias después de detectar `tsc` ausente. `npm run build` terminó con código 0 en ambos workspaces. `npm test` terminó con código 0: 24 de 24 en `reservas-crud` (incluida la prueba SSL nueva) y 152 de 152 en `reservas-mid`, 176 en total. No hay script `lint` de código; Redocly CLI 2.82.0 validó ambos contratos OpenAPI con 10 advertencias preexistentes (`localhost` y `operationId`). `git diff --check` terminó sin errores. No se ejecutó el stack Docker. |
 | Corregir la configuración TLS y de credenciales de DG01 | Tras la revisión del PR #67, `DB_SSL=true` usa `rejectUnauthorized: true`, admite `DB_SSL_CA` con PEM y convierte los `\n` literales en saltos de línea. `DB_PASSWORD` conserva los espacios y `DATABASE_URL` se pasa a Sequelize sin recortar. Se actualizaron `.env.example`, README y las pruebas de regresión. | `npm ci` instaló las dependencias con dos avisos moderados preexistentes en Sequelize y `uuid`. `npm run build` compiló ambos workspaces con código 0. `npm test` aprobó 28 de 28 en `reservas-crud` y 152 de 152 en `reservas-mid`, 180 en total. `git diff --check` terminó sin errores. No se ejecutó el stack Docker ni se abrió o cerró el PR. |
+| Mejorar la documentación de los contratos OpenAPI | Se añadieron ocho `operationId` únicos (cinco en CRUD y tres en MID) y se aclararon las descripciones, la autenticación a través del gateway y la degradación de Open-Meteo. Se conservaron las dos URLs locales para desarrollo y diagnóstico. | Redocly CLI 2.82.0 con `--extends minimal`, como en CI, pasó de diez advertencias a dos. Las ocho corregidas eran identificadores ausentes y las dos restantes corresponden a `localhost`. Ambos contratos son válidos. La comparación del YAML con HEAD confirmó que los únicos cambios fueron `description` y `operationId`. `npm run build`, 160 de 160 pruebas y `git diff --check` completados. |
 
 La validación de Docker comprueba el arranque y la conectividad de red. DG01 incorpora y verifica localmente la comprobación efectiva de la conexión en el arranque del CRUD: la compilación y las pruebas pasaron, pero el stack Docker con PostgreSQL no se ejecutó en esta entrega. Las migraciones y los seeders siguen pendientes. `npm ci` informó dos vulnerabilidades moderadas en las dependencias de producción ya fijadas en el lockfile, correspondientes a Sequelize y `uuid`. El lockfile se conservó.
 
