@@ -45,12 +45,14 @@ Los puertos publicados son `127.0.0.1:3001` y `127.0.0.1:3002` por defecto. `CRU
 
 ### Configuración de PostgreSQL
 
-El CRUD usa Sequelize y necesita una URL completa o un grupo de variables separadas. `DATABASE_URL` tiene prioridad y Compose la arma con el host `postgres:5432`. Cuando el CRUD se ejecuta con npm desde el host y `DATABASE_URL` está vacía, se exigen las variables `DB_*`.
+El CRUD usa Sequelize y necesita una URL completa o un grupo de variables separadas. `DATABASE_URL` tiene prioridad y Compose la arma con el host `postgres:5432`. Cuando el CRUD se ejecuta con npm desde el host y `DATABASE_URL` está vacía, se exigen las variables `DB_*`. El CRUD y el CLI leen una única vez el `.env` de la raíz del repositorio por ruta absoluta; no dependen del directorio actual. `DB_PASSWORD` y las URL se usan sin recortar espacios y no se admite `sslmode=` en la URL; configura TLS con `DB_SSL` y `DB_SSL_CA`.
 
 | Variable | Requerida | Valor inicial | Uso |
 | --- | --- | --- | --- |
-| `DATABASE_URL` | Una de `DATABASE_URL` o `DB_*` | Vacía | URL `postgresql://...`; la usa Compose. |
-| `DB_HOST` | Si no hay `DATABASE_URL` | `127.0.0.1` | Host alcanzable desde el CRUD. |
+| `DATABASE_URL` | Una de `DATABASE_URL` o `DB_*` | Vacía | URL `postgresql://...`; la usa Compose. No admite `sslmode=`. |
+| `DATABASE_URL_TEST` | Para `--env test` | Vacía | URL de la base aislada de pruebas. No admite `sslmode=`. |
+| `DB_NAME_TEST` | Si no hay `DATABASE_URL_TEST` | `reservas_test` | Base de pruebas; debe terminar en `_test` y ser distinta de `DB_NAME`. |
+| `DB_HOST` | Si no hay URL correspondiente | `127.0.0.1` | Host alcanzable desde el CRUD. En pruebas solo `localhost`, `127.0.0.1`, `::1` o `postgres`. |
 | `DB_PORT` | Si no hay `DATABASE_URL` | `5432` | Puerto de PostgreSQL. |
 | `DB_NAME` | Si no hay `DATABASE_URL` | `reservas` | Base de datos. |
 | `DB_USER` | Si no hay `DATABASE_URL` | `reservas` | Usuario. |
@@ -68,25 +70,32 @@ Para levantar solo la base con Docker, ejecuta `docker compose up -d postgres`. 
 
 ### Migraciones
 
-Las migraciones usan `sequelize-cli` con la configuración JavaScript de `apps/reservas-crud/config/config.js`. Esa configuración lee las mismas variables `DATABASE_URL` o `DB_*` descritas arriba, por lo que no es necesario compilar TypeScript ni modificar `src/config/database.ts`.
+Las migraciones usan `sequelize-cli` con la configuración JavaScript de `apps/reservas-crud/config/config.js`. Ese archivo delega en el módulo compartido compilado en `dist/config/db-common.js`, que también usa `src/config/database.ts`; por eso hay que compilar antes de invocar el CLI directamente. Los scripts npm ejecutan `npm run build` automáticamente mediante sus hooks `premigrate*`. No se usa `NODE_ENV=` en los comandos: el entorno se elige con `--env`.
+
+Las configuraciones `development`, `test` y `production` son independientes. Con `--env test` se exige `DATABASE_URL_TEST` o `DB_NAME_TEST`; si faltan ambos, el comando falla y nunca usa `DB_NAME`. Antes de cualquier migración en ese entorno, incluidas `db:migrate:undo` y `db:migrate:undo:all`, se valida que la base termine en `_test`, que no sea igual a `DB_NAME` y que el host esté en `localhost`, `127.0.0.1`, `::1` o `postgres`. La comprobación forma parte de la configuración de `test`, no depende de los argumentos del proceso.
 
 Desde la raíz del repositorio:
 
 ```sh
 npm run migrate --workspace=apps/reservas-crud
+npm run migrate:test --workspace=apps/reservas-crud
 npm run migrate:undo --workspace=apps/reservas-crud
+npm run migrate:undo:test --workspace=apps/reservas-crud
+npm run migrate:undo:all --workspace=apps/reservas-crud
 ```
 
-Los mismos comandos desde `apps/reservas-crud`:
+`migrate:undo` y `migrate:undo:test` son alias de la reversión en `--env test`, de modo que ambas pasan la guardia. Los mismos comandos desde `apps/reservas-crud`, después de `npm run build`:
 
 ```sh
-npx sequelize-cli db:migrate
-npx sequelize-cli db:migrate:undo
+npx sequelize-cli db:migrate --env development
+npx sequelize-cli db:migrate --env test
+npx sequelize-cli db:migrate:undo --env test
+npx sequelize-cli db:migrate:undo:all --env test
 ```
 
-La migración `20261126000000-create-reservas.js` crea la tabla `reservas` con los campos y estados de la sección 6.1. La reversión elimina la tabla y el tipo ENUM `enum_reservas_estado`; no la ejecutes si necesitas conservar los datos. Para consultar el estado de las migraciones, ejecuta `npx sequelize-cli db:migrate:status` desde `apps/reservas-crud`.
+La migración `20261126000000-create-reservas.js` crea la tabla `reservas` con los campos y estados de la sección 6.1; `costo` y `penalizacion` usan `DECIMAL(10, 2)`, igual que el modelo de DG02. La reversión elimina la tabla y después el tipo ENUM `enum_reservas_estado`; no la ejecutes si necesitas conservar los datos. Para consultar el estado de las migraciones, ejecuta `npx sequelize-cli db:migrate:status --env test` desde `apps/reservas-crud` después de compilar.
 
-En esta entrega no se ejecutó la migración contra PostgreSQL: el motor Docker no estaba disponible en el entorno de desarrollo. La comprobación `up`/`undo` queda pendiente de ejecutarse en el despliegue o en un entorno con Docker.
+En esta entrega no se ejecutó el ciclo real `migrate → undo:all → migrate` contra PostgreSQL: no había `.env`, motor Docker ni `psql` disponibles en el entorno de desarrollo. La comprobación automatizada usa `queryInterface` simulado. Los diez datos semilla de la sección 6.1 siguen pendientes y quedan fuera del alcance de DG03.
 
 ### Conexión al gateway del clúster
 

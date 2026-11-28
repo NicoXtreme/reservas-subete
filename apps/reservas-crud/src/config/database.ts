@@ -1,7 +1,7 @@
-import dotenv from "dotenv";
 import { Sequelize, type Options } from "sequelize";
+import { cargarEntorno, dialectOptions, leerUrl } from "./db-common";
 
-dotenv.config();
+cargarEntorno();
 
 type PoolOptions = NonNullable<Options["pool"]>;
 
@@ -77,24 +77,6 @@ function pool(): PoolOptions {
   return { max, min };
 }
 
-function dialectOptions(): Options["dialectOptions"] {
-  const habilitado = (process.env.DB_SSL?.trim().toLowerCase() || "false") === "true";
-
-  if (!habilitado) {
-    return undefined;
-  }
-
-  const ca = process.env.DB_SSL_CA;
-
-  return {
-    ssl: {
-      require: true,
-      rejectUnauthorized: true,
-      ...(ca ? { ca: ca.replace(/\\n/g, "\n") } : {})
-    }
-  };
-}
-
 function opcionesComunes(): Options {
   const ssl = dialectOptions();
 
@@ -107,25 +89,7 @@ function opcionesComunes(): Options {
 }
 
 function urlDatabase(): string | undefined {
-  const raw = process.env.DATABASE_URL;
-
-  if (raw === undefined || raw.trim() === "") {
-    return undefined;
-  }
-
-  let url: URL;
-
-  try {
-    url = new URL(raw);
-  } catch {
-    throw new Error("DATABASE_URL no es una URL válida. Usa postgresql://usuario:clave@host:5432/base.");
-  }
-
-  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
-    throw new Error(`DATABASE_URL debe usar postgres: o postgresql: (recibido: ${url.protocol}).`);
-  }
-
-  return raw;
+  return leerUrl("DATABASE_URL");
 }
 
 function codigoDe(error: unknown): string {

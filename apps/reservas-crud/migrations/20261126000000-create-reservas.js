@@ -33,7 +33,7 @@ module.exports = {
         allowNull: false
       },
       costo: {
-        type: DataTypes.DECIMAL,
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: false
       },
       estado: {
@@ -42,7 +42,7 @@ module.exports = {
         defaultValue: "pendiente"
       },
       penalizacion: {
-        type: DataTypes.DECIMAL,
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
         defaultValue: 0
       },

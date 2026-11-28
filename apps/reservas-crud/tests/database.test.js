@@ -1,5 +1,10 @@
+const path = require("node:path");
+
 const nombresEntorno = [
   "DATABASE_URL",
+  "DATABASE_URL_TEST",
+  "NODE_ENV",
+  "DB_NAME_TEST",
   "DB_HOST",
   "DB_PORT",
   "DB_NAME",
@@ -20,10 +25,11 @@ for (const nombre of nombresEntorno) {
 
 const mockAuthenticate = jest.fn();
 const mockConstructorCalls = [];
+const mockConfigDotenv = jest.fn(() => ({}));
 
 jest.mock("dotenv", () => ({
   __esModule: true,
-  default: { config: jest.fn(() => ({})) }
+  default: { config: (...argumentos) => mockConfigDotenv(...argumentos) }
 }));
 
 jest.mock("sequelize", () => ({
@@ -113,6 +119,14 @@ describe("Configuración de PostgreSQL en reservas-crud", () => {
     cargarModulo();
 
     expect(mockConstructorCalls[0][0].password).toBe("  clave con espacios  ");
+  });
+
+  test("carga .env desde la raíz del repositorio sin depender del directorio actual", () => {
+    entornoDirecto();
+
+    cargarModulo();
+
+    expect(mockConfigDotenv).toHaveBeenCalledWith({ path: path.resolve(__dirname, "../../../.env") });
   });
 
   test("rechaza un DB_PORT fuera de rango", () => {
