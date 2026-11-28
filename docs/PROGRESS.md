@@ -91,3 +91,16 @@ Antes de la actualización, `npm audit --omit=dev` reportó tres entradas, dos m
 - `sequelize@6.37.8` es directa en el CRUD y `uuid@8.3.2` es su dependencia transitiva. Ambas entradas son moderadas y corresponden al mismo aviso de integridad en `uuid`. Las versiones compatibles consultadas de Sequelize conservan `uuid@^8.3.2`, y la corrección aplicable más cercana es `uuid@11.1.1`. El CRUD ya tiene el modelo de reservas, pero todavía carece de migraciones, así que la exposición debe evaluarse al integrar la persistencia. [Aviso de uuid](https://github.com/advisories/GHSA-w5hq-g745-h8pq)
 
 La auditoría se ejecutó en modo de consulta. El cambio de los manifiestos y del lockfile se limitó a Zod. Las entradas de Sequelize y uuid conservan sus versiones.
+
+## DG04 - Validadores CRUD (pendiente de PR)
+
+- Rama: `feature/DG04-validadores` creada desde `origin/feature/DG02-modelo-reservas` (`eddf82c`).
+- Se movió `ESTADOS_RESERVA` y `EstadoReserva` a `apps/reservas-crud/src/models/estados.ts` (sin Sequelize/database). `Reserva.ts` los importa/reexporta; sin cambio de comportamiento.
+- Validadores Zod en `apps/reservas-crud/src/validators/reserva.validators.ts`: creación `.strict()` (ids `/^[^\s\x00-\x1f\x7f]+$/` max 100 sin trim; `abordaje/descenso` trim min 1 max 200 y rechazo de caracteres de control; `cupos` entero 1..2147483647; `costo` finito 0..99999999.99 máx 2 decimales con `Math.round(valor*100)/100===valor`; rechaza id/estado/penalizacion/timestamps/desconocidos), PATCH estado solo enum, id param, consulta con defaults `page=1 limit=10`, rangos `page 1..1000000 limit 1..100`, rechazo de arrays/objetos/repetidos/vacíos/desconocidos antes de coaccionar. Exporta `transicionPermitida` (6.1) sin conectarla a endpoint.
+- Middlewares `validarCuerpo/validarParametros/validarConsulta` en `apps/reservas-crud/src/middlewares/validation.middleware.ts`: `safeParse`, datos en `res.locals.validated.{body,params,query}`, sin tocar `req.query`; 400 `solicitud_invalida` con `detalle.origen` y `errores[{campo,motivo}]`, máx 20 errores/campo 100 chars, sin eco de valores ni stack. `unrecognized_keys` devuelve motivo fijo sin nombres de campos.
+- `app.ts`: error handler mínimo después de rutas; errores de body-parser/status 4xx -> 400 `solicitud_invalida`; otros errores -> `console.error` solo `name/message` y respuesta 500 `error_interno` genérico sin stack. `/health` público y 401/403 gateway sin cambios.
+- Pruebas nuevas: `tests/validators.test.js` y `tests/error-handler.test.js`. Cubren casos válidos, límites, campos prohibidos, ids inválidos/control chars, consultas inválidas, JSON malformado, 415, 16 transiciones, ausencia de `stack`/eco y no logueo de cuerpo en 500.
+
+**Conteos reales**: verificación final en ejecución.
+
+**Pendientes**: conectar `transicionPermitida` al endpoint PATCH (409); costo máximo/decimales más estrictos que el contrato (proponer cambio en contrato); cupo máximo 2147483647 más estricto que el contrato (proponer cambio); parámetros desconocidos rechazados en consulta (ya aplicado, decisión más estricta).
