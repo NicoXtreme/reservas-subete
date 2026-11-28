@@ -52,12 +52,13 @@ El CRUD usa Sequelize y necesita una URL completa o un grupo de variables separa
 | `DB_USER` | Si no hay `DATABASE_URL` | `reservas` | Usuario. |
 | `DB_PASSWORD` | Si no hay `DATABASE_URL` | Sin valor | Contraseña local; nunca se registra en los logs. |
 | `DB_DIALECT` | No | `postgres` | Solo se admite `postgres`. |
-| `DB_SSL` | No | `false` | `true` configura `ssl.require` con `rejectUnauthorized: false` para Azure; desactiva la validación del certificado. |
+| `DB_SSL` | No | `false` | `true` configura `ssl.require` con `rejectUnauthorized: true`; valida el certificado del servidor. |
+| `DB_SSL_CA` | No | Vacía | PEM de la CA cuando el almacén del sistema no la incluye; usa `\n` para saltos de línea. |
 | `DB_POOL_MAX` | No | `5` | Máximo de conexiones del pool. |
 | `DB_POOL_MIN` | No | `0` | Mínimo de conexiones del pool. |
 | `DB_LOGGING` | No | `false` | `true` registra el SQL de Sequelize. |
 
-`DB_SSL=true` configura `ssl.require` con `rejectUnauthorized: false`. Esa combinación **desactiva la validación del certificado** y solo es aceptable mientras no se disponga de la CA de Azure. Usa validación estricta (`rejectUnauthorized: true` con la CA de Azure instalada) tan pronto como sea posible.
+`DB_SSL=true` configura `ssl.require` con `rejectUnauthorized: true`, por lo que valida el certificado del servidor de Azure Database for PostgreSQL. Si el almacén del sistema no incluye la CA de Azure, define `DB_SSL_CA` con el contenido PEM; los `\n` literales se convierten en saltos de línea reales antes de pasar la CA al driver.
 
 Para levantar solo la base con Docker, ejecuta `docker compose up -d postgres`. Ese servicio no publica puertos al host: para ejecutar el CRUD con npm, apunta `DB_HOST` a una instancia local alcanzable en `127.0.0.1:5432` o define `DATABASE_URL`. Si falta una variable obligatoria o un valor no es válido, el CRUD falla antes de escuchar peticiones con un mensaje que identifica la variable. Durante el arranque, `testConnection()` ejecuta `sequelize.authenticate()` y distingue conexión rechazada, credenciales inválidas, base inexistente y timeout sin incluir contraseñas en los mensajes.
 

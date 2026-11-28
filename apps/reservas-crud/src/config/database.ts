@@ -17,6 +17,18 @@ function valorObligatorio(nombre: string): string {
   return valor;
 }
 
+function passwordObligatoria(): string {
+  const valor = process.env.DB_PASSWORD;
+
+  if (valor === undefined || valor === "") {
+    throw new Error(
+      "Falta la variable de entorno obligatoria DB_PASSWORD. Copia .env.example a .env y configura la conexión a PostgreSQL."
+    );
+  }
+
+  return valor;
+}
+
 function enteroOpcional(nombre: string, porDefecto: number, minimo: number, maximo: number): number {
   const raw = process.env[nombre]?.trim();
 
@@ -68,7 +80,19 @@ function pool(): PoolOptions {
 function dialectOptions(): Options["dialectOptions"] {
   const habilitado = (process.env.DB_SSL?.trim().toLowerCase() || "false") === "true";
 
-  return habilitado ? { ssl: { require: true, rejectUnauthorized: false } } : undefined;
+  if (!habilitado) {
+    return undefined;
+  }
+
+  const ca = process.env.DB_SSL_CA;
+
+  return {
+    ssl: {
+      require: true,
+      rejectUnauthorized: true,
+      ...(ca ? { ca: ca.replace(/\\n/g, "\n") } : {})
+    }
+  };
 }
 
 function opcionesComunes(): Options {
@@ -83,9 +107,9 @@ function opcionesComunes(): Options {
 }
 
 function urlDatabase(): string | undefined {
-  const raw = process.env.DATABASE_URL?.trim();
+  const raw = process.env.DATABASE_URL;
 
-  if (!raw) {
+  if (raw === undefined || raw.trim() === "") {
     return undefined;
   }
 
@@ -150,7 +174,7 @@ export const sequelize = url
       port: puerto(),
       database: valorObligatorio("DB_NAME"),
       username: valorObligatorio("DB_USER"),
-      password: valorObligatorio("DB_PASSWORD")
+      password: passwordObligatoria()
     });
 
 export async function testConnection(): Promise<void> {
