@@ -1,6 +1,13 @@
 const request = require("supertest");
 const express = require("express");
 
+jest.mock("../dist/models/Reserva", () => ({
+  __esModule: true,
+  Reserva: {
+    findAndCountAll: jest.fn()
+  }
+}));
+
 process.env.GATEWAY_INTERNAL_SECRET = "test-secret";
 
 const {

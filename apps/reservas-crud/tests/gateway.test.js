@@ -1,4 +1,12 @@
 const request = require("supertest");
+
+jest.mock("../dist/models/Reserva", () => ({
+  __esModule: true,
+  Reserva: {
+    findAndCountAll: jest.fn()
+  }
+}));
+
 const app = require("../dist/app").default;
 
 const testSecret = "secreto-ficticio";

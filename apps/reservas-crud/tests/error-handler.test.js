@@ -1,5 +1,12 @@
 ﻿const request = require("supertest");
 
+jest.mock("../dist/models/Reserva", () => ({
+  __esModule: true,
+  Reserva: {
+    findAndCountAll: jest.fn()
+  }
+}));
+
 describe("app errores y gateway", () => {
   const originalSecret = process.env.GATEWAY_INTERNAL_SECRET;
 
@@ -61,11 +68,15 @@ describe("app errores y gateway", () => {
     expect(JSON.stringify(res.body)).not.toContain("malformed");
   });
 
-  test("error no controlado da 500 gen?rico sin stack y no loguea cuerpo", async () => {
+  test("error no controlado da 500 genérico y solo loguea nombre y code", async () => {
     const spy = jest.spyOn(console, "error").mockImplementation(() => {});
     const { app, manejadorErrores } = cargarApp("secreto");
+    const error = Object.assign(new Error("detalle secreto stack interno"), {
+      name: "DatabaseError",
+      code: "42703"
+    });
     app.post("/boom", (_req, _res) => {
-      throw new Error("detalle secreto stack interno");
+      throw error;
     });
     app.use(manejadorErrores);
     const res = await request(app)
@@ -82,7 +93,10 @@ describe("app errores y gateway", () => {
     expect(JSON.stringify(res.body)).not.toContain("detalle secreto");
     const logPlano = JSON.stringify(spy.mock.calls);
     expect(logPlano).toContain("Error no controlado en reservas-crud");
-    expect(logPlano).not.toContain("valor-sensible");
+    expect(logPlano).toContain("DatabaseError");
+    expect(logPlano).toContain("42703");
+    expect(logPlano).not.toContain("detalle secreto");
+    expect(logPlano.toLowerCase()).not.toContain("stack");
     expect(logPlano).not.toContain("valor-sensible");
     spy.mockRestore();
   });
