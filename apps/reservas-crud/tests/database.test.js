@@ -7,6 +7,7 @@ const nombresEntorno = [
   "DB_PASSWORD",
   "DB_DIALECT",
   "DB_SSL",
+  "DB_SSL_CA",
   "DB_POOL_MAX",
   "DB_POOL_MIN",
   "DB_LOGGING"
@@ -106,6 +107,14 @@ describe("Configuración de PostgreSQL en reservas-crud", () => {
     );
   });
 
+  test("conserva los espacios de DB_PASSWORD", () => {
+    entornoDirecto({ DB_PASSWORD: "  clave con espacios  " });
+
+    cargarModulo();
+
+    expect(mockConstructorCalls[0][0].password).toBe("  clave con espacios  ");
+  });
+
   test("rechaza un DB_PORT fuera de rango", () => {
     entornoDirecto({ DB_PORT: "70000" });
 
@@ -144,13 +153,30 @@ describe("Configuración de PostgreSQL en reservas-crud", () => {
     expect(opciones).not.toHaveProperty("dialectOptions");
   });
 
-  test("configura SSL para Azure cuando DB_SSL=true", () => {
+  test("configura SSL estricto cuando DB_SSL=true", () => {
     entornoDirecto({ DB_SSL: "true" });
 
     cargarModulo();
 
     expect(mockConstructorCalls[0][0].dialectOptions).toEqual({
-      ssl: { require: true, rejectUnauthorized: false }
+      ssl: { require: true, rejectUnauthorized: true }
+    });
+  });
+
+  test("convierte los saltos de línea literales de DB_SSL_CA en el PEM", () => {
+    entornoDirecto({
+      DB_SSL: "true",
+      DB_SSL_CA: "-----BEGIN CERTIFICATE-----\\nLINEA\\n-----END CERTIFICATE-----"
+    });
+
+    cargarModulo();
+
+    expect(mockConstructorCalls[0][0].dialectOptions).toEqual({
+      ssl: {
+        require: true,
+        rejectUnauthorized: true,
+        ca: "-----BEGIN CERTIFICATE-----\nLINEA\n-----END CERTIFICATE-----"
+      }
     });
   });
 
@@ -166,6 +192,28 @@ describe("Configuración de PostgreSQL en reservas-crud", () => {
       dialect: "postgres",
       logging: false,
       pool: { max: 5, min: 0 }
+    }));
+  });
+
+  test("usa DATABASE_URL sin recortar espacios", () => {
+    limpiarEntorno();
+    const url = "  postgresql://usuario:clave-secreta@postgres:5432/reservas  ";
+    process.env.DATABASE_URL = url;
+
+    cargarModulo();
+
+    expect(mockConstructorCalls[0][0]).toBe(url);
+  });
+
+  test("usa DB_* cuando DATABASE_URL solo contiene espacios", () => {
+    entornoDirecto({ DATABASE_URL: "   " });
+
+    cargarModulo();
+
+    expect(mockConstructorCalls[0][0]).toEqual(expect.objectContaining({
+      host: "127.0.0.1",
+      database: "reservas",
+      username: "reservas"
     }));
   });
 

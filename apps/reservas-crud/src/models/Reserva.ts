@@ -5,6 +5,8 @@ const ESTADOS_RESERVA = ["pendiente", "confirmada", "cancelada", "completada"] a
 
 export type EstadoReserva = (typeof ESTADOS_RESERVA)[number];
 
+export type MontoDecimalBD = string | number;
+
 export interface ReservaAttributes {
   id: string;
   ruta_id: string;
@@ -17,6 +19,36 @@ export interface ReservaAttributes {
   penalizacion: number;
   creado_en: Date;
   actualizado_en: Date;
+}
+
+export interface ReservaFilaBD extends Omit<ReservaAttributes, "costo" | "penalizacion"> {
+  costo: MontoDecimalBD;
+  penalizacion: MontoDecimalBD;
+}
+
+export function normalizarMonto(
+  valor: MontoDecimalBD | null | undefined,
+  campo: "costo" | "penalizacion"
+): number | undefined {
+  if (valor === undefined) {
+    return undefined;
+  }
+
+  if (valor === null) {
+    throw new Error(`${campo} no puede ser null.`);
+  }
+
+  if (typeof valor === "string" && valor.trim() === "") {
+    throw new Error(`${campo} no puede ser una cadena vacía.`);
+  }
+
+  const numero = typeof valor === "number" ? valor : Number(valor);
+
+  if (!Number.isFinite(numero)) {
+    throw new Error(`${campo} debe ser un número finito (recibido: ${String(valor)}).`);
+  }
+
+  return numero;
 }
 
 export type ReservaCreationAttributes = Omit<ReservaAttributes, "estado" | "penalizacion" | "creado_en" | "actualizado_en"> &
@@ -54,9 +86,15 @@ export const Reserva = sequelize.define<ReservaModel, ReservaCreationAttributes>
       allowNull: false
     },
     costo: {
-      type: DataTypes.DECIMAL,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
-      validate: { min: 0 }
+      validate: { min: 0 },
+      get(this: ReservaModel): number | undefined {
+        return normalizarMonto(
+          this.getDataValue("costo") as unknown as MontoDecimalBD | null | undefined,
+          "costo"
+        );
+      }
     },
     estado: {
       type: DataTypes.ENUM(...ESTADOS_RESERVA),
@@ -64,10 +102,16 @@ export const Reserva = sequelize.define<ReservaModel, ReservaCreationAttributes>
       defaultValue: "pendiente"
     },
     penalizacion: {
-      type: DataTypes.DECIMAL,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
-      validate: { min: 0 }
+      validate: { min: 0 },
+      get(this: ReservaModel): number | undefined {
+        return normalizarMonto(
+          this.getDataValue("penalizacion") as unknown as MontoDecimalBD | null | undefined,
+          "penalizacion"
+        );
+      }
     },
     creado_en: {
       type: DataTypes.DATE,

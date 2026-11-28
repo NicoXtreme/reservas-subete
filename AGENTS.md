@@ -24,3 +24,14 @@ Nicolás Ortiz lidera el Grupo C, coordina el trabajo de Daniel Gómez y Daniel 
 - Ejecuta compilación y pruebas después de cada implementación. Registra los resultados reales y menciona las verificaciones que no se ejecutaron.
 - Solicita autorización explícita antes de hacer commits, push, merges, cambios de rama o eliminar archivos.
 - Al completar una tarea, actualiza `docs/PROGRESS.md` e informa qué archivos cambiaste, qué pruebas ejecutaste y qué decisiones siguen pendientes.
+
+## Flujo Scrumban y revisión obligatoria
+
+- Vincula toda tarea nueva a un issue real del [tablero de Reservas](https://github.com/users/NicoXtreme/projects/1). Crea una rama específica por issue a partir de `main` actualizada y conserva por separado el trabajo de otros issues.
+- Desarrolla en la rama del issue. El push directo a `main` está prohibido. Todo cambio del repositorio ingresa mediante un PR vinculado a su issue.
+- Ejecuta las verificaciones locales pertinentes, verifica que el PR pase CI y solicita una revisión a otro integrante. Exige al menos una aprobación de otro integrante antes de fusionar. La autoaprobación está prohibida.
+- Nicolás Ortiz es el revisor principal de los PR de Daniel Gómez y Daniel Barrera. Los PR de Nicolás requieren revisión y aprobación de Daniel Gómez o Daniel Barrera. Los tres participan activamente en revisiones cruzadas y comprueban calidad, funcionalidad y criterios de aceptación.
+- Nicolás es el responsable principal de fusionar a `main` una vez satisfechas las verificaciones y aprobaciones obligatorias. Solicita autorización explícita para commits, push y apertura de PR. La fusión también requiere autorización expresa. Nunca fusiones automáticamente ni eludas las protecciones, incluso si actúas a solicitud del líder.
+- Respeta los límites WIP del equipo. Máximo dos tareas **En progreso** por integrante, seis en total y tres **En revisión** para el equipo.
+- Coordina con su responsable antes de modificar un issue de otro integrante. Cierra tareas solo cuando exista evidencia verificable. Registra únicamente aportes, pruebas, revisiones, aprobaciones y reuniones que hayan ocurrido.
+- Consulta la [metodología del equipo](docs/METHODOLOGY.md) para los estados, bloqueos, evidencias y registros de reuniones.

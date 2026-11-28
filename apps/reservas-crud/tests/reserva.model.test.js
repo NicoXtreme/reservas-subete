@@ -15,6 +15,14 @@ function cargarModelo() {
   return { modulo, definicion: mockDefine.mock.calls[0] };
 }
 
+function getterDe(campo) {
+  const [, atributos] = cargarModelo().definicion;
+  const getter = atributos[campo].get;
+  expect(typeof getter).toBe("function");
+
+  return (valor) => getter.call({ getDataValue: () => valor });
+}
+
 describe("Modelo Reserva de reservas-crud", () => {
   test("usa la conexión Sequelize existente sobre la tabla reservas", () => {
     const { modulo, definicion } = cargarModelo();
@@ -100,5 +108,48 @@ describe("Modelo Reserva de reservas-crud", () => {
       expect(atributo.unique).toBeUndefined();
     }
     expect(opciones).not.toHaveProperty("indexes");
+  });
+
+  test("declara costo y penalizacion como DECIMAL(10, 2)", () => {
+    const [, atributos] = cargarModelo().definicion;
+
+    for (const campo of ["costo", "penalizacion"]) {
+      expect(atributos[campo].type.key).toBe("DECIMAL");
+      expect(atributos[campo].type._precision).toBe(10);
+      expect(atributos[campo].type._scale).toBe(2);
+    }
+  });
+
+  test("normaliza los montos a number en ambos getters", () => {
+    for (const campo of ["costo", "penalizacion"]) {
+      const leer = getterDe(campo);
+
+      expect(leer("25.50")).toBe(25.5);
+      expect(leer("0.00")).toBe(0);
+      expect(leer(25.5)).toBe(25.5);
+      expect(leer("0.12345678901234567890")).toBe(Number("0.12345678901234567890"));
+      expect(Number.isFinite(leer("0.12345678901234567890"))).toBe(true);
+      expect(leer(-1)).toBe(-1);
+    }
+  });
+
+  test("devuelve undefined cuando la instancia aún no tiene el monto", () => {
+    for (const campo of ["costo", "penalizacion"]) {
+      expect(getterDe(campo)(undefined)).toBeUndefined();
+    }
+  });
+
+  test.each([null, "", "abc"])("rechaza %p en los getters de monto", (valor) => {
+    for (const campo of ["costo", "penalizacion"]) {
+      const leer = getterDe(campo);
+
+      if (valor === null) {
+        expect(() => leer(valor)).toThrow(`${campo} no puede ser null.`);
+      } else if (valor === "") {
+        expect(() => leer(valor)).toThrow(`${campo} no puede ser una cadena vacía.`);
+      } else {
+        expect(() => leer(valor)).toThrow(`${campo} debe ser un número finito`);
+      }
+    }
   });
 });

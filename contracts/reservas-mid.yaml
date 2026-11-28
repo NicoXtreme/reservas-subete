@@ -7,11 +7,18 @@ info:
     API de lógica de negocio para reservar y cancelar cupos
     en la plataforma de viajes compartidos Súbete.
     Integra Rutas, Pasajeros y reputación, y Open-Meteo.
+    Este borrador describe las operaciones de negocio previstas.
+
+    Los consumidores acceden al MID a través del gateway, que valida el JWT
+    Bearer y los permisos aplicables. El gateway llama al MID con la cabecera
+    interna x-gateway-secret, cuyo nombre es provisional. El MID comprueba el
+    secreto compartido en las solicitudes de negocio. GET /health queda
+    accesible sin cabecera para verificar la disponibilidad.
   version: 1.0.0
 
 servers:
   - url: http://localhost:3002
-    description: Servidor local de desarrollo
+    description: Dirección local del MID para desarrollo y diagnóstico. El acceso directo a las operaciones protegidas requiere la cabecera interna.
 
 tags:
   - name: Reservas
@@ -25,6 +32,7 @@ security:
 paths:
   /reservas/reservar-cupo:
     post:
+      operationId: reservarCuposEnRuta
       tags:
         - Reservas
       summary: Reservar cupos en una ruta
@@ -36,14 +44,19 @@ paths:
         3. Consulta el puntaje del pasajero.
         4. Bloquea pasajeros con insignia en_observacion.
         5. Evita reservas activas duplicadas para el pasajero y la ruta.
-        6. Descuenta un cupo por cada cupo solicitado.
+        6. Descuenta los cupos solicitados a la ruta.
         7. Calcula el costo correspondiente al pasajero.
-        8. Crea la reserva en estado confirmada mediante el CRUD.
+        8. Crea la reserva en estado confirmada mediante el CRUD a través del gateway.
 
         Si falla la creación de la reserva después de descontar los cupos,
         debe ejecutar una compensación devolviendo los cupos a la ruta.
+
+        Quedan por acordar la semántica de la actualización de varios cupos,
+        el método de cálculo de distancia y la operación del CRUD que usará el MID
+        para persistir una reserva confirmada.
       requestBody:
         required: true
+        description: Identificadores y datos del tramo para el que se solicitan cupos.
         content:
           application/json:
             schema:
@@ -51,7 +64,7 @@ paths:
 
       responses:
         '201':
-          description: Reserva confirmada correctamente.
+          description: Reserva confirmada y desglose del costo calculado.
           content:
             application/json:
               schema:
@@ -75,7 +88,7 @@ paths:
                 $ref: '#/components/schemas/Error'
 
         '409':
-          description: Conflicto de negocio.
+          description: Conflicto de negocio, como una ruta cerrada, una reserva activa duplicada o falta de cupos.
           content:
             application/json:
               schema:
@@ -90,13 +103,14 @@ paths:
 
   /reservas/{id}/cancelar:
     post:
+      operationId: cancelarReserva
       tags:
         - Reservas
       summary: Cancelar una reserva
       description: |
         Cancela una reserva existente.
 
-        1. Consulta la reserva mediante el CRUD.
+        1. Consulta la reserva en el CRUD a través del gateway.
         2. Verifica que no esté cancelada ni completada.
         3. Consulta la hora de salida de la ruta mediante el gateway.
         4. Si faltan menos de CANCELACION_TARDIA_MIN minutos,
@@ -107,12 +121,16 @@ paths:
         Si la devolución de cupos falla después de cancelar,
         el sistema debe gestionar la compensación o recuperación
         para evitar inconsistencias.
+
+        Responde 404 si la reserva no existe y 409 si ya está cancelada
+        o completada. Queda por acordar cómo persistir la penalización
+        junto con el cambio de estado.
       parameters:
         - $ref: '#/components/parameters/ReservaId'
 
       responses:
         '200':
-          description: Reserva cancelada correctamente.
+          description: Estado de la cancelación, penalización y cantidad de cupos liberados.
           content:
             application/json:
               schema:
@@ -129,6 +147,7 @@ paths:
 
   /reservas/{id}/clima:
     get:
+      operationId: consultarClimaDeReserva
       tags:
         - Clima
       summary: Consultar clima previsto para una reserva
@@ -136,15 +155,17 @@ paths:
         Consulta las condiciones climáticas previstas para la salida
         del viaje mediante Open-Meteo.
 
-        El MID obtiene la hora y las coordenadas de la ruta a través
-        del gateway y consulta Open-Meteo directamente. Selecciona la hora UTC
+        El MID obtiene la reserva y los datos de la ruta a través del gateway
+        y consulta Open-Meteo directamente. El cliente selecciona la hora UTC
         que contiene la salida y requiere datos completos de esa hora.
+        El cliente de clima está disponible. La integración de esta operación
+        con los CRUD de Reservas y Rutas queda pendiente.
 
         Plan de degradación:
         - Plazo por intento y plazo total acotados.
         - Reintentos limitados para fallos transitorios.
         - Caché local por instancia con TTL, capacidad máxima y deduplicación de consultas concurrentes.
-        - Ante un fallo externo, timeout, respuesta inválida, datos incompletos
+        - Ante un fallo de Open-Meteo, timeout, respuesta inválida, datos incompletos
           o salida fuera del horizonte, responde HTTP 200 con disponible false,
           motivo y mensaje.
         - La indisponibilidad del clima no impide reservar ni cancelar.
@@ -153,7 +174,7 @@ paths:
 
       responses:
         '200':
-          description: Consulta realizada o información climática no disponible.
+          description: Pronóstico disponible o resultado degradado por indisponibilidad de datos meteorológicos.
           content:
             application/json:
               schema:
@@ -175,6 +196,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT presentado al gateway. La cabecera interna que el gateway agrega al reenviar la solicitud se valida por separado en el MID.
 
   parameters:
     ReservaId:
@@ -189,6 +211,7 @@ components:
   schemas:
     SolicitudReserva:
       type: object
+      description: Datos para solicitar cupos de una ruta. La representación geográfica definitiva de abordaje y descenso queda pendiente.
       required:
         - rutaId
         - pasajeroId
@@ -215,6 +238,7 @@ components:
 
     ReservaConfirmada:
       type: object
+      description: Resultado de la reserva con el detalle del cálculo del costo.
       required:
         - mensaje
         - reserva
@@ -230,6 +254,7 @@ components:
 
     Reserva:
       type: object
+      description: Representación de la reserva incluida en la respuesta del MID.
       required:
         - id
         - ruta_id
@@ -278,6 +303,7 @@ components:
 
     DesgloseCosto:
       type: object
+      description: Valores usados para calcular el costo de los cupos reservados en el tramo.
       required:
         - precioTotalRuta
         - distanciaTramo
@@ -308,11 +334,12 @@ components:
           example: 1333.33
         metodoDistancia:
           type: string
-          description: Método acordado con el Grupo A para estimar el tramo.
+          description: Método para estimar la distancia del tramo. El valor mostrado es ilustrativo y el método definitivo está pendiente de acuerdo con el Grupo A.
           example: proporcion_puntos_trazado
 
     ResultadoCancelacion:
       type: object
+      description: Resultado de cancelar la reserva y devolver los cupos de la ruta.
       required:
         - mensaje
         - reservaId
@@ -342,12 +369,14 @@ components:
           example: true
 
     ConsultaClima:
+      description: Resultado de la consulta, con un pronóstico o un motivo de indisponibilidad.
       oneOf:
         - $ref: '#/components/schemas/ClimaDisponible'
         - $ref: '#/components/schemas/ClimaNoDisponible'
 
     ClimaDisponible:
       type: object
+      description: Pronóstico que contiene las mediciones de la hora seleccionada.
       required:
         - disponible
         - reservaId
@@ -394,6 +423,7 @@ components:
 
     ClimaNoDisponible:
       type: object
+      description: Resultado degradado que explica la indisponibilidad sin adjuntar datos meteorológicos ficticios.
       additionalProperties: false
       required:
         - disponible
@@ -425,23 +455,27 @@ components:
 
     Error:
       type: object
+      description: Formato de error del contrato. El código y el mensaje son obligatorios y el detalle contextual es opcional.
       required:
         - codigo
         - mensaje
       properties:
         codigo:
           type: string
+          description: Identificador del error para consumo programático.
           example: sin_cupos
         mensaje:
           type: string
+          description: Mensaje legible que describe el error.
           example: No hay cupos disponibles para esta ruta.
         detalle:
           type: object
+          description: Datos adicionales del error cuando están disponibles.
           additionalProperties: true
 
   responses:
     ErrorResponse:
-      description: Error durante la operación.
+      description: Error de la operación según el estado HTTP indicado.
       content:
         application/json:
           schema:
