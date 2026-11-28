@@ -1,9 +1,8 @@
-import { DataTypes, type Model } from "sequelize";
+﻿import { DataTypes, type Model } from "sequelize";
 import { sequelize } from "../config/database";
+import { ESTADOS_RESERVA, type EstadoReserva } from "./estados";
 
-const ESTADOS_RESERVA = ["pendiente", "confirmada", "cancelada", "completada"] as const;
-
-export type EstadoReserva = (typeof ESTADOS_RESERVA)[number];
+export type { EstadoReserva } from "./estados";
 
 export type MontoDecimalBD = string | number;
 
